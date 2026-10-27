@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """Automated integration test suite for D2 Diagram Rendering Microservice.
 
-Tests endpoints, query options (sketch, theme), error handling, caching,
-and saves generated SVGs to tests/output/ for visual verification.
+Tests endpoints, query options (sketch, theme), error handling, caching, and input
+limits against a live server, and saves generated SVGs to tests/output/ for visual
+verification. The render-timeout test starts its own server with a stand-in `d2`
+so it needs no real compiler and cannot be flaky on slow machines.
 """
 
 import base64
 import http.client
 import os
+import socket
+import stat
+import subprocess
 import sys
+import tempfile
+import time
 import unittest
 import urllib.error
 import urllib.parse
@@ -208,6 +215,50 @@ class TestD2Server(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             self._http_get(f"/d2/svg/{bomb}")
         self.assertEqual(ctx.exception.code, 413)
+
+
+class TestRenderTimeout(unittest.TestCase):
+    """Verifies a render that outlives RENDER_TIMEOUT_SECONDS returns 504."""
+
+    def test_14_slow_render_returns_504(self):
+        server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake_d2 = os.path.join(bin_dir, "d2")
+            with open(fake_d2, "w", encoding="utf-8") as f:
+                # exec replaces the shell so the timeout kill reaches the sleeping process;
+                # a lingering child would keep the output pipe open and stall the server.
+                f.write("#!/bin/sh\nexec sleep 30\n")
+            os.chmod(fake_d2, os.stat(fake_d2).st_mode | stat.S_IEXEC)
+
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0))
+                port = probe.getsockname()[1]
+
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ["PATH"],
+                       PORT=str(port), RENDER_TIMEOUT_SECONDS="1")
+            server = subprocess.Popen([sys.executable, server_path], env=env,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                base = f"http://127.0.0.1:{port}"
+                for _ in range(50):
+                    try:
+                        urllib.request.urlopen(base + "/health", timeout=1)
+                        break
+                    except OSError:
+                        time.sleep(0.1)
+                else:
+                    self.fail("test server did not start")
+
+                started = time.monotonic()
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    req = urllib.request.Request(base + "/d2/svg", data=b"a -> b",
+                                                 headers={"Content-Type": "text/plain"})
+                    urllib.request.urlopen(req, timeout=10)
+                self.assertEqual(ctx.exception.code, 504)
+                self.assertLess(time.monotonic() - started, 10)
+            finally:
+                server.terminate()
+                server.wait(timeout=5)
 
 
 if __name__ == "__main__":

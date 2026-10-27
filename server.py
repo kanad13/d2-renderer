@@ -4,6 +4,11 @@
 A lightweight, zero-dependency HTTP server that compiles D2 diagram specifications
 into SVG graphics on the fly. Supports Kroki-compatible GET URLs (deflate + base64url)
 and raw POST payloads, with LRU memory caching and query-based styling options.
+
+The service is meant to sit on the public internet behind <img> tags, so it has no
+authentication. Instead, every render is bounded: input size (MAX_SOURCE_BYTES),
+runtime (RENDER_TIMEOUT_SECONDS) and cache size are capped so one caller cannot exhaust
+a small instance. Cloud Run adds the remaining caps (concurrency, instance count).
 """
 
 import base64
@@ -84,12 +89,11 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         sketch = query_params.get("sketch", ["false"])[0].lower() in ("true", "1", "yes")
 
         theme = query_params.get("theme", [""])[0]
-        # Validate theme is an integer ID or safe identifier
+        # Theme and layout flow into the d2 command line, so only safe identifier characters pass.
         if theme and not re.match(r"^[0-9a-zA-Z_-]+$", theme):
             theme = ""
 
         layout = query_params.get("layout", [""])[0]
-        # Validate layout engine name
         if layout and not re.match(r"^[a-zA-Z0-9_-]+$", layout):
             layout = ""
 
@@ -138,7 +142,6 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         path = parsed_url.path.strip("/")
         query_params = urllib.parse.parse_qs(parsed_url.query)
 
-        # Health probe endpoint
         if path == "health":
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -146,7 +149,6 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"OK")
             return
 
-        # Diagram endpoint: /d2/svg/<encoded_string>
         parts = path.split("/")
         if len(parts) == 3 and parts[0] == "d2" and parts[1] == "svg":
             encoded_str = parts[2]

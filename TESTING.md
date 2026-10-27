@@ -34,6 +34,7 @@ Verification ensures:
 | **Missing Route** (`GET /unknown`) | Request non-existent path | `404 Not Found` | Router fallthrough | `test_11_unmatched_route_returns_404` |
 | **Oversized Body** (`POST` with huge `Content-Length`) | Declare a 50 MiB body | `413`, body never read | Size limit | `test_12_oversized_post_returns_413` |
 | **Decompression Bomb** (`GET` tiny payload, 5 MiB inflated) | Submit highly compressed text | `413` | Bounded inflate | `test_13_decompression_bomb_returns_413` |
+| **Slow Render** (`POST` while `d2` hangs) | Run a server whose `d2` sleeps, with a 1 s limit | `504` within seconds | Subprocess timeout | `test_14_slow_render_returns_504` (starts its own server; no Docker needed) |
 
 ---
 
