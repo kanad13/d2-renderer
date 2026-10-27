@@ -119,6 +119,7 @@ def sync_embedded_sources() -> None:
 
 
 def write_all(renderer: str) -> int:
+    """Renders every diagram to its SVG, then syncs embedded sources. Returns 0."""
     for d2_path, svg_path in diagram_files():
         svg_path.parent.mkdir(parents=True, exist_ok=True)
         svg_path.write_bytes(render(renderer, d2_path.read_text(encoding="utf-8")))
@@ -149,6 +150,7 @@ def check_all(renderer: str) -> int:
 
 
 def main() -> int:
+    """Parses arguments and runs the chosen mode. Returns the process exit code."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="fail if any SVG or embedded source is stale")
     parser.add_argument("--renderer", default=os.environ.get("DOC_RENDERER_URL", "http://localhost:8080"))

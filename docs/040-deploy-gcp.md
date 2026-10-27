@@ -1,6 +1,6 @@
 # Deploy to Google Cloud Run
 
-Runbook for a fresh Google Cloud account. After the one-time setup, every push to `main` deploys automatically.
+Runbook for a fresh Google Cloud account. After the one-time setup, every push to `main` deploys automatically, unless you [pause deploys](./050-operations.md#take-the-service-offline-and-bring-it-back).
 
 If an agent is following this: ask the user for each value in the table below before running anything, and show each command's effect before it changes their account.
 
@@ -60,7 +60,7 @@ Web UI alternative: repository **Settings > Secrets and variables > Actions > Va
 
 Why: pushing proves the whole chain (test, publish, authenticate, deploy) in one step.
 
-Push any commit to `main`, or re-run the latest workflow. Watch it:
+Push any commit to `main`, or re-run the latest workflow. The deploy job runs unless the repository variable `DEPLOY_ENABLED` is `false`. Watch it:
 
 ```bash
 gh run list -R <GITHUB_REPO> -L 1

@@ -455,7 +455,7 @@ Lightweight Markdown Preview draws your ```d2 fences with this service. Start th
 - **A script or build step:**
   - POST the raw text to `/d2/svg`, as in the quickstart.
 - **A public instance:**
-  - Deploy the same image to Google Cloud Run with the [deploy runbook](./docs/040-deploy-gcp.md). A push to `main` tests, publishes and deploys.
+  - Deploy the same image to Google Cloud Run with the [deploy runbook](./docs/040-deploy-gcp.md). A push to `main` tests, publishes and deploys, unless you [pause deploys](./docs/050-operations.md#take-the-service-offline-and-bring-it-back).
 
 ## Documentation
 

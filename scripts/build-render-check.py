@@ -54,10 +54,12 @@ INLINE_CASES = [
 
 
 def encode(source: str) -> str:
+    """Returns the URL-safe payload (zlib, then Base64) that the service decodes."""
     return base64.urlsafe_b64encode(zlib.compress(source.encode("utf-8"), 9)).decode("ascii")
 
 
 def collect_cases():
+    """Returns (title, D2 source, query string) for the inline cases and every examples/*.d2 file."""
     cases = list(INLINE_CASES)
     for path in sorted((ROOT / "examples").glob("*.d2")):
         cases.append((f"examples/{path.name}", path.read_text(encoding="utf-8"), ""))
@@ -65,6 +67,11 @@ def collect_cases():
 
 
 def build(servers: dict) -> str:
+    """Returns the check page HTML with one row per case and one image per server.
+
+    Args:
+        servers: Column label to base URL, for example the local and remote renderers.
+    """
     rows = []
     for title, source, query in collect_cases():
         encoded = encode(source)
@@ -123,6 +130,7 @@ PAGE = """<!doctype html>
 
 
 def main():
+    """Writes render-check/index.html for the local server and the optional remote one."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--local", default="http://localhost:8080")
     parser.add_argument("--remote", default=os.environ.get("RENDERER_REMOTE_URL", ""))

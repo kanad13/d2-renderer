@@ -101,6 +101,13 @@ Cloud Run has no stop button. Two steps give the same effect, and both are rever
 gcloud run services remove-iam-policy-binding d2-renderer --project=<PROJECT_ID> --region=<REGION> --member=allUsers --role=roles/run.invoker
 ```
 
+- **Call it yourself while it is offline:**
+  - Project members with the invoker permission can still reach it with an identity token. Anyone else gets `403`.
+
+```bash
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" <SERVICE_URL>/health
+```
+
 - **Keep pushes from reopening it:**
   - The deploy job reads the repository variable `DEPLOY_ENABLED`. While it is `false`, a push to `main` still tests and publishes the image, and the deploy job is skipped.
 
@@ -116,7 +123,7 @@ gh variable delete DEPLOY_ENABLED
 gh run rerun <RUN_ID>
 ```
 
-  - To reopen without a deploy, add the binding back:
+- To reopen without a deploy, add the binding back:
 
 ```bash
 gcloud run services add-iam-policy-binding d2-renderer --project=<PROJECT_ID> --region=<REGION> --member=allUsers --role=roles/run.invoker

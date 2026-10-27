@@ -26,6 +26,7 @@ ICON_OK = "https://icons.terrastruct.com/essentials%2F092-graph%20bar.svg"
 
 
 def encode(src: str) -> str:
+    """Returns the URL-safe zlib+Base64 payload for D2 text."""
     return base64.urlsafe_b64encode(zlib.compress(src.encode(), 9)).decode()
 
 
@@ -49,6 +50,7 @@ def raw(base: str, method: str, path: str, body: bytes = b""):
 
 
 def post(base: str, d2: str, query: str = ""):
+    """POSTs D2 text over a raw socket and returns (status_line, headers, body)."""
     return raw(base, "POST", "/d2/svg" + query, d2.encode())
 
 
@@ -57,6 +59,7 @@ def one_line(s: str) -> str:
 
 
 def main(base: str):
+    """Runs every probe against `base` and prints the behavior table."""
     rows = []
 
     def add(name, value):

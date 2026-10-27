@@ -105,7 +105,7 @@ compile -> net: none {
 
 ## Build and deployment
 
-Pushing to `main` tests the build, publishes both architectures, and deploys the commit to Cloud Run. Cloud Run selects the `linux/amd64` entry of the image.
+Pushing to `main` tests the build, publishes both architectures, and deploys the commit to Cloud Run. Setting the repository variable `DEPLOY_ENABLED` to `false` skips only the deploy step ([decision 090](./decisions/090-deploy-pause-switch.md)). Cloud Run selects the `linux/amd64` entry of the image.
 
 <img src="img/deployment.svg" alt="A push to main flows through GitHub Actions to the GHCR image and a Cloud Run service that public pages call" width="420">
 

@@ -57,11 +57,13 @@ def raw_exchange(host: str, port: int, request: bytes):
 
 
 def post_request(path: str, body: bytes) -> bytes:
+    """Builds a raw HTTP/1.1 POST with a correct Content-Length."""
     return (f"POST {path} HTTP/1.1\r\nHost: t\r\nContent-Length: {len(body)}\r\n"
             "Connection: close\r\n\r\n").encode() + body
 
 
 def get_request(path: str) -> bytes:
+    """Builds a raw HTTP/1.1 GET that asks the server to close the connection."""
     return f"GET {path} HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n".encode()
 
 
