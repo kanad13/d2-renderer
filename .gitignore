@@ -4,3 +4,4 @@ tests/output/
 .DS_Store
 .venv/
 venv/
+render-check/
