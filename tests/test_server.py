@@ -9,12 +9,14 @@ so it needs no real compiler and cannot be flaky on slow machines.
 
 import base64
 import http.client
+import http.server
 import os
 import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 import urllib.error
@@ -23,6 +25,9 @@ import urllib.request
 import zlib
 
 TARGET_URL = os.environ.get("TEST_TARGET_URL", "http://127.0.0.1:8080")
+# Address of this machine as the server under test sees it. Docker Desktop provides
+# host.docker.internal; set TEST_STANDIN_HOST when the server runs elsewhere.
+STANDIN_HOST = os.environ.get("TEST_STANDIN_HOST", "host.docker.internal")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 
 
@@ -285,6 +290,98 @@ class TestWellFormedErrors(unittest.TestCase):
         self.assertEqual((res.status, res.reason), (400, "Bad Request"))
         self.assertIn("failed to compile", res.read().decode("utf-8"))
         conn.close()
+
+
+class RecordingServer:
+    """A tiny HTTP server that records every request path, standing in for an icon host."""
+
+    def __enter__(self):
+        hits = self.hits = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                hits.append(self.path)
+                self.send_response(200)
+                self.send_header("Content-Type", "image/svg+xml")
+                self.end_headers()
+                self.wfile.write(b'<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>')
+
+            def log_message(self, *args):
+                pass
+
+        self.httpd = http.server.ThreadingHTTPServer(("0.0.0.0", 0), Handler)
+        self.port = self.httpd.server_address[1]
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        return self
+
+    def __exit__(self, *exc):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+
+class TestOfflineCompile(unittest.TestCase):
+    """Diagrams render without the compiler fetching anything or reading server files."""
+
+    def test_22_icon_urls_trigger_no_outbound_request(self):
+        with RecordingServer() as icon_host:
+            url = f"http://{STANDIN_HOST}:{icon_host.port}/a.svg"
+            req = urllib.request.Request(urllib.parse.urljoin(TARGET_URL, "/d2/svg"),
+                                         data=f"x: X {{ icon: {url} }}".encode(),
+                                         headers={"Content-Type": "text/plain"})
+            res = urllib.request.urlopen(req, timeout=15)
+            svg = res.read().decode("utf-8")
+            time.sleep(0.5)
+            self.assertEqual(res.status, 200)
+            self.assertEqual(icon_host.hits, [])
+            self.assertIn(f'<image href="{url}"', svg)
+
+    def test_23_private_and_metadata_icon_urls_still_render(self):
+        for url in ("http://127.0.0.1:9/a.svg", "http://169.254.169.254/a.svg",
+                    "http://metadata.google.internal/computeMetadata/v1/a.svg"):
+            req = urllib.request.Request(urllib.parse.urljoin(TARGET_URL, "/d2/svg"),
+                                         data=f"x: X {{ icon: {url} }}".encode(),
+                                         headers={"Content-Type": "text/plain"})
+            started = time.monotonic()
+            res = urllib.request.urlopen(req, timeout=15)
+            self.assertEqual(res.status, 200, url)
+            self.assertLess(time.monotonic() - started, 5, url)
+
+    def test_24_compile_runs_offline_in_an_empty_directory(self):
+        server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake_d2 = os.path.join(bin_dir, "d2")
+            with open(fake_d2, "w", encoding="utf-8") as f:
+                # The stand-in reports how it was invoked, so the test can assert the
+                # flags and the working directory the real compiler would see.
+                f.write('#!/bin/sh\ncat >/dev/null\n'
+                        'printf \'<svg>args=%s pwd=%s entries=%s</svg>\' "$*" "$(pwd)" "$(ls -A | wc -l | tr -d " ")"\n')
+            os.chmod(fake_d2, os.stat(fake_d2).st_mode | stat.S_IEXEC)
+
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0))
+                port = probe.getsockname()[1]
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ["PATH"], PORT=str(port))
+            server = subprocess.Popen([sys.executable, server_path], env=env,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                base = f"http://127.0.0.1:{port}"
+                for _ in range(50):
+                    try:
+                        urllib.request.urlopen(base + "/health", timeout=1)
+                        break
+                    except OSError:
+                        time.sleep(0.1)
+                else:
+                    self.fail("test server did not start")
+                req = urllib.request.Request(base + "/d2/svg", data=b"...@secret",
+                                             headers={"Content-Type": "text/plain"})
+                out = urllib.request.urlopen(req, timeout=10).read().decode("utf-8")
+                self.assertIn("--bundle=false", out)
+                self.assertIn("entries=0", out)
+                self.assertNotIn(os.path.realpath(os.path.dirname(server_path)), out)
+            finally:
+                server.terminate()
+                server.wait(timeout=5)
 
 
 class TestRenderTimeout(unittest.TestCase):

@@ -17,6 +17,7 @@ import http.server
 import os
 import re
 import subprocess
+import tempfile
 import urllib.parse
 import zlib
 from typing import Tuple
@@ -52,7 +53,11 @@ def compile_d2_cached(source_text: str, sketch: bool, theme: str, layout: str) -
         subprocess.CalledProcessError: If D2 compiler fails.
         subprocess.TimeoutExpired: If rendering exceeds RENDER_TIMEOUT_SECONDS.
     """
-    cmd = ["d2", "-", "-"]
+    # --bundle=false keeps the compiler offline: D2 would otherwise download every icon or
+    # image URL a diagram names, which on a public instance means fetching attacker-chosen
+    # addresses (private ranges, the cloud metadata server). The SVG keeps the URLs as
+    # <image href> references, so a viewer's own browser decides what to load.
+    cmd = ["d2", "-", "-", "--bundle=false"]
 
     if sketch:
         cmd.append("--sketch")
@@ -61,13 +66,17 @@ def compile_d2_cached(source_text: str, sketch: bool, theme: str, layout: str) -
     if layout:
         cmd.append(f"--layout={layout}")
 
-    proc = subprocess.run(
-        cmd,
-        input=source_text.encode("utf-8"),
-        capture_output=True,
-        check=True,
-        timeout=RENDER_TIMEOUT_SECONDS,
-    )
+    # D2 imports (`...@name`) resolve against the working directory. An empty directory per
+    # compile means a diagram can import nothing from the server's own files.
+    with tempfile.TemporaryDirectory() as workdir:
+        proc = subprocess.run(
+            cmd,
+            input=source_text.encode("utf-8"),
+            capture_output=True,
+            check=True,
+            timeout=RENDER_TIMEOUT_SECONDS,
+            cwd=workdir,
+        )
     return proc.stdout
 
 
