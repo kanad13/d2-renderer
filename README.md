@@ -36,7 +36,10 @@ flowchart LR
 | [TESTING.md](./TESTING.md) | Canonical testing strategy and behavioral verification instructions. |
 | [examples/](./examples/README.md) | Sample `.d2` source files and pre-encoded URL strings. |
 | [tests/](./tests/test_server.py) | Automated integration test suite. |
-| [.github/workflows/ci.yml](./.github/workflows/ci.yml) | GitHub Actions CI/CD workflow for testing and image publishing. |
+| [.github/workflows/ci.yml](./.github/workflows/ci.yml) | GitHub Actions: test, publish to GHCR, deploy to Cloud Run. |
+| [scripts/](./scripts/gcp-setup.sh) | One-time GCP setup script and the visual render check. |
+| [docs/](./docs/README.md) | Architecture, deploy runbook, operations, plan and decision records. |
+| [AGENTS.md](./AGENTS.md) | Instructions for coding agents, including the per-session goal. |
 
 ---
 
@@ -104,6 +107,14 @@ curl -X POST http://localhost:8080/d2/svg \
 
 Health check probe for container orchestrators (e.g., Cloud Run, Kubernetes, Docker). Returns `200 OK` with body `OK`.
 
+### Error responses
+
+| Status | Meaning |
+| :--- | :--- |
+| `400` | Malformed payload or D2 syntax error (compiler message in body). |
+| `413` | Input larger than `MAX_SOURCE_BYTES` (default 256 KiB), raw or decompressed. |
+| `504` | Render exceeded `RENDER_TIMEOUT_SECONDS` (default 20). |
+
 ---
 
 ## Client-Side URL Encoding
@@ -129,32 +140,23 @@ function encodeD2(code) {
 
 ## Cloud Deployment
 
-Because this microservice is stateless and lightweight, it runs efficiently on low-cost or free-tier cloud containers:
+The service is stateless and runs on Google Cloud Run in an EU region, scaling to zero when idle. Pushes to `main` test, publish and deploy automatically.
 
-### Option A: Google Cloud Run (Recommended for Personal Use)
-Google Cloud Run scales down to **zero instances** when not in use, making it virtually free under the standard free tier (2 million requests/month):
+- **Set up your own copy:** follow the [GCP deploy runbook](./docs/020-deploy-gcp.md).
+- **Run and tune it:** see [operations](./docs/030-operations.md) for cost, rollback and limits.
+- **Why it is built this way:** see the [decision records](./docs/decisions/README.md).
+
+Other hosts work too, since it is a plain container:
 
 ```bash
-gcloud run deploy d2-renderer \
-  --image ghcr.io/kanad13/d2-renderer:latest \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --port 8080
-```
-
-### Option B: Fly.io
-```bash
+# Fly.io
 fly launch --image ghcr.io/kanad13/d2-renderer:latest
+
+# Any Docker host
+docker run -d --name d2-renderer -p 80:8080 --restart unless-stopped ghcr.io/kanad13/d2-renderer:latest
 ```
 
-### Option C: Personal VPS / Docker Host
-```bash
-docker run -d --name d2-renderer \
-  -p 80:8080 \
-  --restart unless-stopped \
-  ghcr.io/kanad13/d2-renderer:latest
-```
+Keep a public service safe with the limits in [architecture](./docs/010-architecture.md#limits-and-why-they-exist): input size, render time and instance caps are enforced by default.
 
 ---
 

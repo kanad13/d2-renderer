@@ -32,6 +32,8 @@ Verification ensures:
 | **Malformed Payload** (`GET /d2/svg/invalid!!`) | Submit un-decodable string | `400 Bad Request`, error details in body | Base64/zlib error handling | `test_09_invalid_base64_returns_400` |
 | **Syntax Error** (`POST /d2/svg` bad syntax) | Submit unclosed bracket | `400 Bad Request`, compiler stderr in body | D2 subprocess error capture | `test_10_invalid_d2_syntax_returns_400` |
 | **Missing Route** (`GET /unknown`) | Request non-existent path | `404 Not Found` | Router fallthrough | `test_11_unmatched_route_returns_404` |
+| **Oversized Body** (`POST` with huge `Content-Length`) | Declare a 50 MiB body | `413`, body never read | Size limit | `test_12_oversized_post_returns_413` |
+| **Decompression Bomb** (`GET` tiny payload, 5 MiB inflated) | Submit highly compressed text | `413` | Bounded inflate | `test_13_decompression_bomb_returns_413` |
 
 ---
 
@@ -82,6 +84,19 @@ If you have `d2` installed locally on your host (`brew install d2`):
 ---
 
 ## 4. Visual Verification
+
+### Render check page (end of every session)
+
+Status codes do not prove a diagram looks right. Generate a page that shows every sample diagram from the local container and, optionally, the deployed service:
+
+```bash
+RENDERER_REMOTE_URL=<SERVICE_URL> python3 scripts/build-render-check.py
+python3 -m http.server -d render-check <PORT>
+```
+
+Open `http://localhost:<PORT>/`, check that every image appears in each column with readable labels, and that sketch, theme and layout variants visibly differ from the plain ones. Omit `RENDERER_REMOTE_URL` to check only the local column.
+
+### Saved SVG files
 
 The test suite automatically writes rendered SVG artifacts into `tests/output/`:
 
