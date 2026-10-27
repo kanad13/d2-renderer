@@ -35,6 +35,10 @@ Verification ensures:
 | **Oversized Body** (`POST` with huge `Content-Length`) | Declare a 50 MiB body | `413`, body never read | Size limit | `test_12_oversized_post_returns_413` |
 | **Decompression Bomb** (`GET` tiny payload, 5 MiB inflated) | Submit highly compressed text | `413` | Bounded inflate | `test_13_decompression_bomb_returns_413` |
 | **Slow Render** (`POST` while `d2` hangs) | Run a server whose `d2` sleeps, with a 1 s limit | `504` within seconds | Subprocess timeout | `test_14_slow_render_returns_504` (starts its own server; no Docker needed) |
+| **Strict HTTP Client** (any error, GET and POST) | Read the raw reply from a socket | One-line status (`Bad Request`, `Not Found`, `Payload Too Large`, `Gateway Timeout`), `text/plain; charset=utf-8` body with the message | Socket, HTTP framing | `test_15`–`test_21`, and the 504 raw check in `test_14` |
+| **Icon URL in a diagram** (`icon: http://...`) | Point the icon at a recording stand-in host, and at private, link-local and metadata addresses | `200`, zero requests reach the stand-in, URL kept as `<image href>`, renders in under 5 s | D2 `--bundle=false`, network | `test_22`, `test_23` |
+| **Import in a diagram** (`...@name`) | Run a stand-in `d2` that reports its flags and working directory | `--bundle=false` present, working directory empty and not the server directory | Subprocess `cwd` | `test_24` (starts its own server; no Docker needed) |
+| **Documentation reader** (copy a payload from the docs) | Decode and render every payload in README.md, docs/, examples/ | `200` with SVG for each | zlib, base64, D2 | `test_25` |
 
 ---
 
@@ -49,7 +53,7 @@ Verification ensures:
 
 2. **Run the container locally:**
    ```bash
-   docker run -d --name d2-test-instance -p 8080:8080 d2-renderer:test
+   docker run -d --name d2-test-instance -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test
    ```
 
 3. **Execute the automated test suite:**
@@ -61,6 +65,8 @@ Verification ensures:
    ```bash
    docker rm -f d2-test-instance
    ```
+
+`TEST_STANDIN_HOST` names the test machine as the server sees it (default `host.docker.internal`). Set it when the server runs somewhere else.
 
 ### Running Locally (Native Python without Docker)
 
@@ -96,6 +102,20 @@ python3 -m http.server -d render-check <PORT>
 ```
 
 Open `http://localhost:<PORT>/`, check that every image appears in each column with readable labels, and that sketch, theme and layout variants visibly differ from the plain ones. Omit `RENDERER_REMOTE_URL` to check only the local column.
+
+### Before/after behavior probe
+
+Compare two builds, or a deployed service with a new local image, with one read-only script (about a dozen small requests):
+
+```bash
+python3 scripts/probe-behavior.py <BASE_URL>
+```
+
+Run it against each target and diff the tables. It reports status-line shape, error bodies, tala support, Node `fetch` parsing, and how icon URLs (public, loopback, link-local, cloud metadata) are handled.
+
+### Multi-architecture image
+
+Locally: `docker buildx build --platform linux/amd64,linux/arm64 .`. After CI publishes, `docker buildx imagetools inspect ghcr.io/<OWNER>/d2-renderer:latest` lists both platforms, and the publish job fails if either is missing. On an Apple Silicon Mac the arm64 image runs natively; run it, then render a diagram with `?layout=tala`.
 
 ### Saved SVG files
 
