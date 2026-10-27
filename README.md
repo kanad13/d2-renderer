@@ -21,9 +21,23 @@ flowchart LR
 - **Kroki-Compatible URLs:** Embed diagrams via `<img src="https://your-domain/d2/svg/<encoded_string>">`.
 - **Zero Python Dependencies:** Built using Python's standard library (`http.server`, `urllib`, `subprocess`, `zlib`, `base64`).
 - **High Performance:** In-memory LRU cache stores rendered SVGs; duplicate requests respond in `<1ms`.
+- **Offline and private:** Every compile runs without network access, in an empty working directory. A diagram's icon URLs stay references in the SVG, so a public instance stays safe. See [decision 060](./docs/decisions/060-offline-compile-in-empty-directory.md).
+- **Runs natively everywhere:** One image tag serves Intel/AMD (`linux/amd64`) and Apple Silicon or other Arm hosts (`linux/arm64`).
+- **Well-formed errors:** Every error reply has a one-line status and a plain-text body with the full compiler message.
 - **Customizable:** Query parameter support for hand-drawn sketch mode (`?sketch=true`) and themes (`?theme=<id>`).
 - **Full Font Support:** Includes `fontconfig` and DejaVu TrueType fonts inside the container to ensure accurate text layout metrics.
 - **REST POST Endpoint:** Accepts raw D2 text in request bodies for programmatic rendering.
+
+---
+
+## Use it with VS Code
+
+Lightweight Markdown Preview draws your ```d2 fences with this service. Start the container, run **Markdown: Choose D2 Renderer** and pick the local Docker container.
+
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=KunalPathak.lightweight-markdown-preview)
+- [Open VSX](https://open-vsx.org/extension/KunalPathak/lightweight-markdown-preview)
+- [GitHub](https://github.com/kanad13/lightweight-markdown-preview)
+- [D2 guide](https://github.com/kanad13/lightweight-markdown-preview/blob/main/docs/d2.md)
 
 ---
 
@@ -48,15 +62,16 @@ flowchart LR
 ### 1. Run with Docker (Recommended)
 
 ```bash
-# Build the image locally
-docker build -t d2-renderer .
+docker run -d --name d2-renderer -p 8080:8080 ghcr.io/kanad13/d2-renderer:latest
+```
 
-# Start the container
-docker run -d -p 8080:8080 --name d2-renderer d2-renderer
+Verify the health check:
 
-# Verify the health check
+```bash
 curl http://localhost:8080/health
 ```
+
+To build the image from this repository instead: `docker build -t d2-renderer .`, then run `d2-renderer` in place of the `ghcr.io` name above.
 
 ### 2. Run Natively (Bare Metal)
 
@@ -120,9 +135,11 @@ Health check probe for container orchestrators (e.g., Cloud Run, Kubernetes, Doc
 
 ### Error responses
 
+Every error reply carries a one-line status (`Bad Request`, `Not Found`, `Payload Too Large`, `Gateway Timeout`) and the full message in a `text/plain; charset=utf-8` body, so strict HTTP clients such as Node's `fetch` read it directly.
+
 | Status | Meaning |
 | :--- | :--- |
-| `400` | Malformed payload or D2 syntax error (compiler message in body). |
+| `400` | Malformed payload or D2 syntax error. The body is `text/plain` and holds the compiler message. |
 | `413` | Input larger than `MAX_SOURCE_BYTES` (default 256 KiB), raw or decompressed. |
 | `504` | Render exceeded `RENDER_TIMEOUT_SECONDS` (default 20). |
 

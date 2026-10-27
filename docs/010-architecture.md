@@ -27,7 +27,7 @@ flowchart LR
 
 1. The client sends `GET /d2/svg/<payload>` (deflate + URL-safe base64) or `POST /d2/svg` with raw text.
 2. The service rejects oversized input before any work: bodies and decompressed payloads above `MAX_SOURCE_BYTES` get `413`.
-3. A cache hit returns immediately. A miss runs `d2` with a time limit; exceeding `RENDER_TIMEOUT_SECONDS` gives `504`, D2 syntax errors give `400`.
+3. A cache hit returns immediately. A miss runs `d2` offline (`--bundle=false`) in an empty temporary directory, with a time limit ([decision 060](./decisions/060-offline-compile-in-empty-directory.md)); exceeding `RENDER_TIMEOUT_SECONDS` gives `504`, D2 syntax errors give `400`.
 4. The SVG is returned with a one-year cache header, so browsers rarely ask twice.
 
 ## Limits and why they exist

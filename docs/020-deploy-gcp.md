@@ -84,6 +84,10 @@ RENDERER_REMOTE_URL=<SERVICE_URL> python3 scripts/build-render-check.py
 
 Open `render-check/index.html` (serve it with `python3 -m http.server -d render-check`) and confirm every diagram appears in both columns.
 
+## 6. Connect VS Code
+
+Paste `<SERVICE_URL>` into the setting `lightweightMarkdownViewer.d2.rendererUrl`, or pick it with **Markdown: Choose D2 Renderer**.
+
 ## Troubleshooting
 
 | Symptom                                                                     | Cause                                                                                    | Fix                                                                 |
@@ -94,6 +98,8 @@ Open `render-check/index.html` (serve it with `python3 -m http.server -d render-
 | Deploy job fails at authentication                                          | Branch is not `main`, repository name differs from `<GITHUB_REPO>`, or variables missing | Re-run setup with the right `GITHUB_REPO`; check `gh variable list` |
 | Deploy fails making the service public                                      | An organization policy blocks public access                                              | Ask the organization admin to allow it for this project             |
 | Cloud Run cannot pull the image                                             | The package is private                                                                   | Make the GHCR package public                                        |
+
+Draw `d2` fences in VS Code with [Lightweight Markdown Preview](https://marketplace.visualstudio.com/items?itemName=KunalPathak.lightweight-markdown-preview).
 
 ## Navigation
 

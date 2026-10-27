@@ -2,6 +2,8 @@
 
 This directory contains reference D2 diagram source files and instructions for rendering them using the `d2-renderer` microservice.
 
+Use these diagrams in VS Code with [Lightweight Markdown Preview](https://marketplace.visualstudio.com/items?itemName=KunalPathak.lightweight-markdown-preview), which draws `d2` fences through this service.
+
 ---
 
 ## Directory Contents

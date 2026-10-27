@@ -17,6 +17,7 @@ Read in order; each is under a page.
 | [030-keyless-github-deploy.md](./030-keyless-github-deploy.md)                           | Deploy through workload identity federation, no stored keys.                         |
 | [040-public-image-pulled-directly.md](./040-public-image-pulled-directly.md)             | Cloud Run pulls the public GHCR image directly.                                      |
 | [050-traffic-limits-and-cost-guardrails.md](./050-traffic-limits-and-cost-guardrails.md) | Limits and a budget alert instead of a hard spending cap.                            |
+| [060-offline-compile-in-empty-directory.md](./060-offline-compile-in-empty-directory.md) | Compile offline in an empty directory: no outbound requests, no imports. |
 
 ## Record format
 

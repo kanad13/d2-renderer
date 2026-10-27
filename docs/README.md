@@ -18,6 +18,8 @@ New to the project: read [010-architecture.md](./010-architecture.md). Deploying
 | [040-plan.md](./040-plan.md)                 | Delivery phases and their status.                                                |
 | [decisions/](./decisions/README.md)          | Decision records: what was chosen, what was rejected, and why.                   |
 
+Draw `d2` fences in VS Code with [Lightweight Markdown Preview](https://marketplace.visualstudio.com/items?itemName=KunalPathak.lightweight-markdown-preview); the extension sends them to this service.
+
 ## Conventions
 
 - Commands in these docs use `<PLACEHOLDER>` values. Never paste real project IDs, emails or billing accounts here.
