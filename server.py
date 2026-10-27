@@ -71,6 +71,11 @@ def compile_d2_cached(source_text: str, sketch: bool, theme: str, layout: str) -
     return proc.stdout
 
 
+# Short reasons for the status line. http.server's own table says "Request Entity Too Large"
+# for 413; the current RFC name is used instead.
+ERROR_REASONS = {400: "Bad Request", 404: "Not Found", 413: "Payload Too Large", 504: "Gateway Timeout"}
+
+
 class D2Handler(http.server.BaseHTTPRequestHandler):
     """HTTP request handler for D2 diagram rendering."""
 
@@ -99,6 +104,21 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
 
         return sketch, theme, layout
 
+    def _send_error_text(self, code: int, message: str):
+        """Replies with the standard one-line reason and the full message as a plain-text body.
+
+        BaseHTTPRequestHandler.send_error would put `message` in the status line, and a
+        multi-line compiler message there breaks strict HTTP clients such as Node's fetch.
+        """
+        body = message.encode("utf-8")
+        self.send_response(code, ERROR_REASONS[code])
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(body)
+
     def _send_svg(self, svg_bytes: bytes, is_cached: bool = False):
         """Sends a 200 OK response with SVG content and caching headers."""
         self.send_response(200)
@@ -117,10 +137,10 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         try:
             svg = compile_d2_cached(d2_code, sketch, theme, layout)
         except subprocess.CalledProcessError as err:
-            self.send_error(400, f"D2 Compilation Error:\n{err.stderr.decode('utf-8', errors='replace')}")
+            self._send_error_text(400, f"D2 Compilation Error:\n{err.stderr.decode('utf-8', errors='replace')}")
             return
         except subprocess.TimeoutExpired:
-            self.send_error(504, f"Rendering exceeded {RENDER_TIMEOUT_SECONDS}s limit")
+            self._send_error_text(504, f"Rendering exceeded {RENDER_TIMEOUT_SECONDS}s limit")
             return
 
         is_cached = compile_d2_cached.cache_info().hits > cache_info_before.hits
@@ -155,16 +175,16 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
             try:
                 d2_code = self._decode_payload(encoded_str)
             except SourceTooLarge as err:
-                self.send_error(413, str(err))
+                self._send_error_text(413, str(err))
                 return
             except Exception as err:
-                self.send_error(400, f"Malformed encoded payload: {str(err)}")
+                self._send_error_text(400, f"Malformed encoded payload: {str(err)}")
                 return
 
             self._render_and_send(d2_code, query_params)
             return
 
-        self.send_error(404, "Not Found. Use /d2/svg/<encoded_string> or POST to /d2/svg")
+        self._send_error_text(404, "Not Found. Use /d2/svg/<encoded_string> or POST to /d2/svg")
 
     def do_POST(self):
         """Handles POST requests containing raw D2 script bodies."""
@@ -176,25 +196,25 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
             try:
                 content_length = int(self.headers.get("Content-Length", 0))
             except ValueError:
-                self.send_error(400, "Invalid Content-Length")
+                self._send_error_text(400, "Invalid Content-Length")
                 return
             if content_length <= 0:
-                self.send_error(400, "Empty request body")
+                self._send_error_text(400, "Empty request body")
                 return
             # Checked before reading so an oversized body never enters memory.
             if content_length > MAX_SOURCE_BYTES:
-                self.send_error(413, f"Request body exceeds {MAX_SOURCE_BYTES} bytes")
+                self._send_error_text(413, f"Request body exceeds {MAX_SOURCE_BYTES} bytes")
                 return
             try:
                 d2_code = self.rfile.read(content_length).decode("utf-8")
             except Exception as err:
-                self.send_error(400, f"Failed to read request body: {str(err)}")
+                self._send_error_text(400, f"Failed to read request body: {str(err)}")
                 return
 
             self._render_and_send(d2_code, query_params)
             return
 
-        self.send_error(404, "Not Found. POST to /d2/svg")
+        self._send_error_text(404, "Not Found. POST to /d2/svg")
 
 
 def run(port: int = PORT):

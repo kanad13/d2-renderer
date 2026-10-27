@@ -32,6 +32,31 @@ def encode_d2(d2_text: str) -> str:
     return base64.urlsafe_b64encode(compressed).decode("ascii")
 
 
+def raw_exchange(host: str, port: int, request: bytes):
+    """Sends bytes on a bare socket and returns (status_line, header_text, body).
+
+    urllib and http.client tolerate a malformed status line; reading the raw bytes is the
+    only way to prove the reply is well-formed for strict clients.
+    """
+    with socket.create_connection((host, port), timeout=15) as sock:
+        sock.sendall(request)
+        data = b""
+        while chunk := sock.recv(65536):
+            data += chunk
+    head, _, body = data.partition(b"\r\n\r\n")
+    status_line, _, headers = head.decode("latin-1").partition("\r\n")
+    return status_line, headers, body.decode("utf-8", errors="replace")
+
+
+def post_request(path: str, body: bytes) -> bytes:
+    return (f"POST {path} HTTP/1.1\r\nHost: t\r\nContent-Length: {len(body)}\r\n"
+            "Connection: close\r\n\r\n").encode() + body
+
+
+def get_request(path: str) -> bytes:
+    return f"GET {path} HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n".encode()
+
+
 class TestD2Server(unittest.TestCase):
     """Integration test suite executing against a live or containerized server."""
 
@@ -217,6 +242,51 @@ class TestD2Server(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 413)
 
 
+class TestWellFormedErrors(unittest.TestCase):
+    """Every error reply has a one-line status line and its message in a text/plain body."""
+
+    HOST = urllib.parse.urlparse(TARGET_URL).hostname
+    PORT = urllib.parse.urlparse(TARGET_URL).port
+
+    def assert_well_formed(self, request: bytes, code: int, reason: str, body_contains: str):
+        status_line, headers, body = raw_exchange(self.HOST, self.PORT, request)
+        self.assertRegex(status_line, rf"^HTTP/1\.[01] {code} {reason}$")
+        self.assertIn("text/plain; charset=utf-8", headers)
+        self.assertIn(body_contains, body)
+
+    def test_15_compile_error_post(self):
+        self.assert_well_formed(post_request("/d2/svg", b"x -> -> y {"), 400, "Bad Request", "failed to compile")
+
+    def test_16_compile_error_get(self):
+        path = f"/d2/svg/{encode_d2('x -> -> y {')}"
+        self.assert_well_formed(get_request(path), 400, "Bad Request", "failed to compile")
+
+    def test_17_malformed_payload_get(self):
+        self.assert_well_formed(get_request("/d2/svg/not!valid"), 400, "Bad Request", "Malformed encoded payload")
+
+    def test_18_empty_post_body(self):
+        self.assert_well_formed(post_request("/d2/svg", b""), 400, "Bad Request", "Empty request body")
+
+    def test_19_not_found_get_and_post(self):
+        self.assert_well_formed(get_request("/nope"), 404, "Not Found", "Not Found")
+        self.assert_well_formed(post_request("/nope", b"a"), 404, "Not Found", "Not Found")
+
+    def test_20_payload_too_large(self):
+        too_big = (f"POST /d2/svg HTTP/1.1\r\nHost: t\r\nContent-Length: {50 * 1024 * 1024}\r\n"
+                   "Connection: close\r\n\r\n").encode()
+        self.assert_well_formed(too_big, 413, "Payload Too Large", "exceeds")
+        bomb = f"/d2/svg/{encode_d2('a' * (5 * 1024 * 1024))}"
+        self.assert_well_formed(get_request(bomb), 413, "Payload Too Large", "exceeds")
+
+    def test_21_http_client_reads_error_body(self):
+        conn = http.client.HTTPConnection(self.HOST, self.PORT, timeout=10)
+        conn.request("POST", "/d2/svg", body=b"x -> -> y {")
+        res = conn.getresponse()
+        self.assertEqual((res.status, res.reason), (400, "Bad Request"))
+        self.assertIn("failed to compile", res.read().decode("utf-8"))
+        conn.close()
+
+
 class TestRenderTimeout(unittest.TestCase):
     """Verifies a render that outlives RENDER_TIMEOUT_SECONDS returns 504."""
 
@@ -256,6 +326,11 @@ class TestRenderTimeout(unittest.TestCase):
                     urllib.request.urlopen(req, timeout=10)
                 self.assertEqual(ctx.exception.code, 504)
                 self.assertLess(time.monotonic() - started, 10)
+
+                status_line, headers, body = raw_exchange("127.0.0.1", port, post_request("/d2/svg", b"a -> b"))
+                self.assertRegex(status_line, r"^HTTP/1\.[01] 504 Gateway Timeout$")
+                self.assertIn("text/plain; charset=utf-8", headers)
+                self.assertIn("limit", body)
             finally:
                 server.terminate()
                 server.wait(timeout=5)
