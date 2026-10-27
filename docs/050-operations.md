@@ -1,12 +1,32 @@
 # Operations
 
-Day-to-day care of the deployed service: cost, rollback, logs, tuning, teardown. Placeholders are explained in [020-deploy-gcp.md](./020-deploy-gcp.md#values-to-gather).
+Day-to-day care of the deployed service: health, cost, rollback, logs, tuning and teardown. Placeholders are explained in [040-deploy-gcp.md](./040-deploy-gcp.md#values-to-gather).
+
+## Check the service
+
+Three commands show whether the live service matches the latest build.
+
+- **Revision and image:**
+  - Confirm the ready revision runs the commit you expect.
+
+```bash
+gcloud run services describe d2-renderer --project=<PROJECT_ID> --region=<REGION> \
+  --format='value(status.latestReadyRevisionName,spec.template.spec.containers[0].image)'
+```
+
+- **Behavior:**
+  - The probe script sends about a dozen small read-only requests and prints a table. Run it against two targets and compare the output.
+
+```bash
+python3 scripts/probe-behavior.py <SERVICE_URL>
+```
+
+- **Pictures:**
+  - The render check page shows every sample diagram from the local container and the deployed service. Steps are in [TESTING.md](../TESTING.md#visual-verification).
 
 ## Cost model
 
 Cloud Run bills only while a request runs, rounded up to 100 ms, and scales to zero otherwise. Google's [pricing page](https://cloud.google.com/run/pricing) lists a monthly free allowance for request-based billing: 180,000 vCPU-seconds, 360,000 GiB-seconds and 2 million requests. Check the page for current numbers.
-
-What to know:
 
 - **Free allowance by region:**
   - Google applies the allowance as a spending discount at **Tier 1** prices, shared across all projects on one billing account.
@@ -22,12 +42,23 @@ What to know:
   - The alert sends email. It does **not** stop spending.
   - Google's [automatic billing shutoff](https://docs.cloud.google.com/billing/docs/how-to/disable-billing-with-notifications) disables billing for the whole project, may lag, and can delete resources.
   - This project does not use the shutoff ([decision 050](./decisions/050-traffic-limits-and-cost-guardrails.md)).
+- **Monthly review:**
+  - After the first month, read the billing report and decide whether the limits need adjusting.
+  - A report near zero and no alert emails mean the defaults fit.
+
+## Images and tags
+
+The publish job pushes each build under three tags, and every tag points to a multi-architecture manifest.
+
+| Tag              | Use it for                                                                                 |
+| :--------------- | :----------------------------------------------------------------------------------------- |
+| `latest`         | Local runs that should follow the newest build.                                            |
+| Short commit SHA | Pinning a local run to one build.                                                          |
+| Full commit SHA  | Deploys. Cloud Run never serves a cached older image, because each deploy names a new tag. |
 
 ## Rollback
 
-Why: a bad deploy should be undone in seconds, without a rebuild.
-
-List revisions, then send all traffic to a known-good one:
+A bad deploy is undone in seconds, without a rebuild. List revisions, then send all traffic to a known-good one:
 
 ```bash
 gcloud run revisions list --service=d2-renderer --project=<PROJECT_ID> --region=<REGION>
@@ -42,7 +73,7 @@ The next push to `main` deploys forward again.
 gcloud run services logs read d2-renderer --project=<PROJECT_ID> --region=<REGION> --limit=50
 ```
 
-Request lines include the diagram URL, which can contain diagram text. Do not put personal data in diagrams.
+Request lines include the diagram URL, which can contain diagram text. Keep personal data out of diagrams.
 
 ## Tuning limits
 
@@ -57,11 +88,11 @@ The service reads these environment variables. Set one on the running service wi
 gcloud run services update d2-renderer --project=<PROJECT_ID> --region=<REGION> --update-env-vars=RENDER_TIMEOUT_SECONDS=<SECONDS>
 ```
 
-Concurrency, memory and instance limits live in the deploy job of [ci.yml](../.github/workflows/ci.yml); change them there so the next deploy does not undo them.
+Concurrency, memory and instance limits live in the deploy job of [ci.yml](../.github/workflows/ci.yml). Change them there so the next deploy keeps them.
 
 ## Teardown
 
-Why: deleting the project removes the service, identities and trust setup in one step, and stops all billing from it.
+Deleting the project removes the service, identities and trust setup in one step, and stops all billing from it.
 
 ```bash
 gcloud projects delete <PROJECT_ID>
@@ -72,4 +103,4 @@ Then delete the `GCP_*` repository variables, and the budget if it remains in th
 ## Navigation
 
 - [Documentation index](./README.md)
-- Previous: [Deploy runbook](./020-deploy-gcp.md) · Next: [Plan](./040-plan.md)
+- Previous: [Deploy runbook](./040-deploy-gcp.md)

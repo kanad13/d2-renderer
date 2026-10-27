@@ -1,34 +1,103 @@
 # d2-renderer
 
-A lightweight, zero-dependency HTTP microservice and Docker container that turns [D2](https://d2lang.com) diagram code into SVG vector graphics on the fly. 
+Turn [D2](https://d2lang.com) diagram text into SVG with one `docker run`.
 
-Designed for personal documentation hubs, blogs, and wikis where you want to embed diagrams via standard HTML `<img>` tags or Markdown without installing compilers on client devices or sending private diagram data to third-party services.
+<img src="examples/img/hello.svg" alt="A browser sends a diagram URL to d2-renderer and receives an SVG" width="560">
 
-```mermaid
-flowchart LR
-    Client["Client Browser / Markdown"] -->|"GET /d2/svg/{encoded}"| Service["d2-renderer"]
-    Service -->|"Check Cache"| Cache[("LRU Memory Cache")]
-    Cache -->|"Cache Hit"| SVG["SVG Vector Response"]
-    Cache -->|"Cache Miss"| D2["D2 Compiler CLI"]
-    D2 -->|"Generated SVG"| Cache
-    SVG --> Client
+<!-- d2-source: examples/hello.d2 -->
+<details>
+<summary>D2 source</summary>
+
+```d2
+vars: {
+  d2-config: {
+    layout-engine: dagre
+  }
+}
+direction: right
+Browser -> d2-renderer: GET diagram URL
+d2-renderer -> Browser: SVG
 ```
 
----
+</details>
 
-## Features
+## The problem
 
-- **Kroki-Compatible URLs:** Embed diagrams via `<img src="https://your-domain/d2/svg/<encoded_string>">`.
-- **Zero Python Dependencies:** Built using Python's standard library (`http.server`, `urllib`, `subprocess`, `zlib`, `base64`).
-- **High Performance:** In-memory LRU cache stores rendered SVGs; duplicate requests respond in `<1ms`.
-- **Offline and private:** Every compile runs without network access, in an empty working directory. A diagram's icon URLs stay references in the SVG, so a public instance stays safe. See [decision 060](./docs/decisions/060-offline-compile-in-empty-directory.md).
-- **Runs natively everywhere:** One image tag serves Intel/AMD (`linux/amd64`) and Apple Silicon or other Arm hosts (`linux/arm64`).
-- **Well-formed errors:** Every error reply has a one-line status and a plain-text body with the full compiler message.
-- **Customizable:** Query parameter support for hand-drawn sketch mode (`?sketch=true`) and themes (`?theme=<id>`).
-- **Full Font Support:** Includes `fontconfig` and DejaVu TrueType fonts inside the container to ensure accurate text layout metrics.
-- **REST POST Endpoint:** Accepts raw D2 text in request bodies for programmatic rendering.
+D2 describes a diagram as plain text, and a compiler turns that text into a picture. The picture is the hard part to deliver:
 
----
+- **Markdown previews, blogs and wikis:**
+  - They show text and images, and they cannot run the D2 compiler.
+  - GitHub shows a `d2` code fence as code, not as a diagram.
+- **Hosted renderers:**
+  - They draw the diagram for you.
+  - They also receive every diagram you send, including private architecture notes.
+- **Installing D2 on every machine:**
+  - It works for one person and breaks down for a team, a CI job or a public page.
+
+## What d2-renderer does
+
+d2-renderer wraps the `d2` compiler in a small HTTP service inside one container. You send diagram text and receive an SVG back. You run the container on your own machine or on a cloud host you control, so your diagram text stays with you.
+
+<img src="docs/img/local-use.svg" alt="VS Code sends a d2 fence to the local d2-renderer container, which compiles it offline and returns an SVG" width="560">
+
+<!-- d2-source: docs/diagrams/local-use.d2 -->
+<details>
+<summary>D2 source</summary>
+
+```d2
+direction: right
+
+editor: VS Code {
+  md: "Markdown file\nwith a d2 fence"
+  ext: Lightweight Markdown Preview
+  md -> ext
+}
+
+box: Your machine {
+  container: d2-renderer container {
+    server: HTTP service
+    d2: d2 compiler\n(offline, empty directory)
+    server -> d2: source text
+    d2 -> server: SVG
+  }
+}
+
+editor.ext -> box.container.server: "img src = localhost:8080/d2/svg/..."
+box.container.server -> editor.ext: SVG diagram
+```
+
+</details>
+
+## Quickstart
+
+Start the service:
+
+```bash
+docker run -d --name d2-renderer -p 8080:8080 ghcr.io/kanad13/d2-renderer:latest
+```
+
+Render a diagram:
+
+```bash
+printf 'client -> server: request\nserver -> client: response' \
+  | curl -X POST --data-binary @- http://localhost:8080/d2/svg -o hello.svg
+```
+
+Open `hello.svg` in a browser. The same image tag runs on Intel/AMD machines and on Apple Silicon Macs, with no `--platform` flag. More ways to run it are in [Run locally](./docs/010-run-locally.md).
+
+## Why use it
+
+| You get                     | How                                                                                                                                                                                                                                                       |
+| :-------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Private rendering**       | The compiler runs in your container. Diagram text goes nowhere else.                                                                                                                                                                                      |
+| **Offline, safe compiles**  | Each compile makes no network requests and runs in an empty directory, so a diagram cannot fetch addresses or read server files. Icon URLs stay as references in the SVG. See [decision 060](./docs/decisions/060-offline-compile-in-empty-directory.md). |
+| **No D2 install**           | Clients need only an HTTP call or an `<img>` tag.                                                                                                                                                                                                         |
+| **Native on Intel and Arm** | One tag serves `linux/amd64` and `linux/arm64`.                                                                                                                                                                                                           |
+| **Fast repeats**            | An in-memory cache answers a repeated diagram in about a millisecond (1.2 ms measured end to end on localhost).                                                                                                                                           |
+| **Readable errors**         | Every error reply has a one-line status and a plain-text body with the full compiler message, so strict clients such as Node's `fetch` read it directly.                                                                                                  |
+| **Layouts and styles**      | `?sketch=true`, `?theme=<id>` and `?layout=dagre\|elk\|tala` pass straight to D2.                                                                                                                                                                         |
+| **Safe to publish**         | Input size, render time, cache size and instance count are all capped. See [architecture](./docs/030-architecture.md#limits-and-why-they-exist).                                                                                                          |
+| **Standard-library server** | The Python service has no dependencies beyond the standard library.                                                                                                                                                                                       |
 
 ## Use it with VS Code
 
@@ -39,165 +108,30 @@ Lightweight Markdown Preview draws your ```d2 fences with this service. Start th
 - [GitHub](https://github.com/kanad13/lightweight-markdown-preview)
 - [D2 guide](https://github.com/kanad13/lightweight-markdown-preview/blob/main/docs/d2.md)
 
----
+## Use it from anywhere else
 
-## Repository Map
+- **An `<img>` tag on a page you publish:**
+  - Encode the diagram into the URL, then point `src` at the service.
+  - The format is in the [API reference](./docs/020-api-reference.md#get-d2svgpayload).
+- **A script or build step:**
+  - POST the raw text to `/d2/svg`, as in the quickstart.
+- **A public instance:**
+  - Deploy the same image to Google Cloud Run with the [deploy runbook](./docs/040-deploy-gcp.md). A push to `main` tests, publishes and deploys.
 
-| Directory / File | Description |
-| :--- | :--- |
-| [server.py](./server.py) | Main HTTP microservice daemon with caching and CLI invocation. |
-| [Dockerfile](./Dockerfile) | Multi-stage Docker build producing the production container image. |
-| [TESTING.md](./TESTING.md) | Canonical testing strategy and behavioral verification instructions. |
-| [examples/](./examples/README.md) | Sample `.d2` source files and pre-encoded URL strings. |
-| [tests/](./tests/test_server.py) | Automated integration test suite. |
-| [.github/workflows/ci.yml](./.github/workflows/ci.yml) | GitHub Actions: test, publish to GHCR, deploy to Cloud Run. |
-| [scripts/](./scripts/gcp-setup.sh) | One-time GCP setup script and the visual render check. |
-| [docs/](./docs/README.md) | Architecture, deploy runbook, operations, plan and decision records. |
-| [AGENTS.md](./AGENTS.md) | Instructions for coding agents, including the per-session goal. |
+## Documentation
 
----
-
-## Quickstart
-
-### 1. Run with Docker (Recommended)
-
-```bash
-docker run -d --name d2-renderer -p 8080:8080 ghcr.io/kanad13/d2-renderer:latest
-```
-
-Verify the health check:
-
-```bash
-curl http://localhost:8080/health
-```
-
-To build the image from this repository instead: `docker build -t d2-renderer .`, then run `d2-renderer` in place of the `ghcr.io` name above.
-
-### 2. Run Natively (Bare Metal)
-
-If you have `d2` installed locally (`brew install d2` or `curl -fsSL https://d2lang.com/install.sh | sh`):
-
-```bash
-python3 server.py
-```
-
-The service will start on `http://localhost:8080`.
-
----
-
-## API Specification
-
-### 1. `GET /d2/svg/<encoded_string>`
-
-Renders an SVG from a zlib-compressed, URL-safe Base64 encoded string.
-
-#### Parameters (Query String)
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `sketch` | boolean | `false` | When `true`, renders diagram with a hand-drawn sketch aesthetic. |
-| `theme` | string / integer | `0` | D2 theme ID (e.g. `0` default, `1` neutral grey, `200` dark mauve). |
-| `layout` | string | `dagre` | Layout engine to use (`dagre`, `elk`, `tala`). |
-
-#### Example Usage
-
-Source:
-
-```d2
-direction: right
-Browser -> d2-renderer: GET diagram URL
-d2-renderer -> Browser: SVG
-```
-
-Embed (the encoder under [Client-Side URL Encoding](#client-side-url-encoding) produced this string from the source above):
-
-```html
-<img src="http://localhost:8080/d2/svg/eNpLySxKTS7JzM-zUijKTM8o4XIqyi8vTi1S0LVTSDHSLUrNS0ktSi2yUnB3DVFIyUxML0rMVQgN8uFCkgSphWqzUggOc-cCAOsaHDY=" alt="Browser to d2-renderer round trip" />
-```
-
----
-
-### 2. `POST /d2/svg`
-
-Renders an SVG from raw D2 code passed in the HTTP request body.
-
-#### Example Request
-```bash
-curl -X POST http://localhost:8080/d2/svg \
-  -H "Content-Type: text/plain" \
-  -d "User -> Service: Call API"
-```
-
----
-
-### 3. `GET /health`
-
-Health check probe for container orchestrators (e.g., Cloud Run, Kubernetes, Docker). Returns `200 OK` with body `OK`.
-
-### Error responses
-
-Every error reply carries a one-line status (`Bad Request`, `Not Found`, `Payload Too Large`, `Gateway Timeout`) and the full message in a `text/plain; charset=utf-8` body, so strict HTTP clients such as Node's `fetch` read it directly.
-
-| Status | Meaning |
-| :--- | :--- |
-| `400` | Malformed payload or D2 syntax error. The body is `text/plain` and holds the compiler message. |
-| `413` | Input larger than `MAX_SOURCE_BYTES` (default 256 KiB), raw or decompressed. |
-| `504` | Render exceeded `RENDER_TIMEOUT_SECONDS` (default 20). |
-
----
-
-## Client-Side URL Encoding
-
-To generate the `{encoded_string}` from a D2 diagram file, use any of these one-liners:
-
-### Python
-```bash
-python3 -c "import sys, base64, zlib; print(base64.urlsafe_b64encode(zlib.compress(sys.stdin.read().encode('utf-8'), 9)).decode('ascii'))" < diagram.d2
-```
-
-### Node.js / JavaScript
-```javascript
-const zlib = require('zlib');
-
-function encodeD2(code) {
-  const compressed = zlib.deflateSync(Buffer.from(code, 'utf-8'), { level: 9 });
-  return compressed.toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
-}
-```
-
----
-
-## Cloud Deployment
-
-The service is stateless and runs on Google Cloud Run in an EU region, scaling to zero when idle. Pushes to `main` test, publish and deploy automatically.
-
-- **Set up your own copy:** follow the [GCP deploy runbook](./docs/020-deploy-gcp.md).
-- **Run and tune it:** see [operations](./docs/030-operations.md) for cost, rollback and limits.
-- **Why it is built this way:** see the [decision records](./docs/decisions/README.md).
-
-Other hosts work too, since it is a plain container:
-
-```bash
-# Fly.io
-fly launch --image ghcr.io/kanad13/d2-renderer:latest
-
-# Any Docker host
-docker run -d --name d2-renderer -p 80:8080 --restart unless-stopped ghcr.io/kanad13/d2-renderer:latest
-```
-
-Keep a public service safe with the limits in [architecture](./docs/010-architecture.md#limits-and-why-they-exist): input size, render time and instance caps are enforced by default.
-
----
-
-## Verification & Testing
-
-Refer to [TESTING.md](./TESTING.md) for the complete test strategy and automated test harness execution instructions.
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
----
+| Read                                                   | When you want to                                           |
+| :----------------------------------------------------- | :--------------------------------------------------------- |
+| [Run locally](./docs/010-run-locally.md)               | Run, update, configure or troubleshoot the container.      |
+| [API reference](./docs/020-api-reference.md)           | Call the service: endpoints, parameters, errors, encoding. |
+| [Architecture](./docs/030-architecture.md)             | See how a request flows and why each limit exists.         |
+| [Deploy to Google Cloud Run](./docs/040-deploy-gcp.md) | Run a public instance.                                     |
+| [Operations](./docs/050-operations.md)                 | Manage cost, roll back, read logs, tune limits.            |
+| [Decision records](./docs/decisions/README.md)         | Learn why the project is built this way.                   |
+| [Examples](./examples/README.md)                       | See rendered diagrams next to their source.                |
+| [Testing](./TESTING.md)                                | Run the tests and verify a build.                          |
+| [AGENTS.md](./AGENTS.md)                               | Work on the repository as a coding agent.                  |
 
 ## License
 
-MIT
+[MIT](./LICENSE)

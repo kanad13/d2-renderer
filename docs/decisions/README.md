@@ -18,6 +18,8 @@ Read in order; each is under a page.
 | [040-public-image-pulled-directly.md](./040-public-image-pulled-directly.md)             | Cloud Run pulls the public GHCR image directly.                                      |
 | [050-traffic-limits-and-cost-guardrails.md](./050-traffic-limits-and-cost-guardrails.md) | Limits and a budget alert instead of a hard spending cap.                            |
 | [060-offline-compile-in-empty-directory.md](./060-offline-compile-in-empty-directory.md) | Compile offline in an empty directory: no outbound requests, no imports. |
+| [070-static-svg-diagrams-in-docs.md](./070-static-svg-diagrams-in-docs.md) | Show documentation diagrams as committed SVG files with their D2 source beside them. |
+| [080-multi-architecture-image.md](./080-multi-architecture-image.md) | Publish `linux/amd64` and `linux/arm64` from one tag. |
 
 ## Record format
 

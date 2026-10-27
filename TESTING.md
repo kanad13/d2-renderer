@@ -1,138 +1,114 @@
-# Test Strategy & Verification Guide
+# Testing
 
-This document defines the testing strategy, test harness, and behavioral verification procedures for `d2-renderer` in accordance with the `test-strategist` protocol.
+How to verify `d2-renderer`: what each check proves, how to run it, and when it runs. Run the automated suite after every change, and the render check at the end of every session.
 
----
+## What is verified
 
-## 1. Scope & Verification Baseline
+| Outcome | Why it matters |
+| :--- | :--- |
+| Endpoints answer with the documented contract. | Clients depend on status codes, headers and SVG bodies. |
+| Every error reply is well formed. | Strict HTTP clients such as Node's `fetch` reject a multi-line status line. |
+| Compiles stay offline and isolated. | A diagram must not trigger outbound requests or read server files. |
+| Every payload and diagram in the docs works. | A copied example that fails costs a reader their trust. |
+| The image runs on both architectures. | Apple Silicon is a main audience. |
+| Rendered pictures look right. | A `200` status does not prove labels are readable. |
 
-`d2-renderer` is an HTTP microservice that decodes compressed D2 strings or raw D2 text and generates vector SVG diagrams via the D2 CLI.
+## Workflow map
 
-Verification ensures:
-1. **API Contracts:** `GET /health`, `GET /d2/svg/<encoded>`, and `POST /d2/svg` adhere strictly to HTTP standards.
-2. **Layout Engine Integrity:** The D2 binary runs correctly inside the container with proper font metric support (`fontconfig`, `fonts-dejavu-core`), rendering labels without overlapping or clipping.
-3. **Styling & Option Flags:** Query parameters (`?sketch=true`, `?theme=<id>`) correctly pass through to the D2 engine.
-4. **Performance & Reliability:** Duplicate diagram requests hit the in-memory LRU cache (`X-Cache: HIT`).
-5. **Defect Sensitivity:** Malformed payloads or invalid D2 code trigger explicit HTTP 400 errors with actionable diagnostic messages instead of crashing the process or hanging.
-
----
-
-## 2. Workflows & Observable Evidence
-
-| Caller & Entry Point | Action | Expected Result | System Boundaries | Evidence / Test Case |
+| Caller and entry point | Action | Expected result | Boundary crossed | Evidence |
 | :--- | :--- | :--- | :--- | :--- |
-| **Health Probe** (`GET /health`) | Query container health | `200 OK`, body `"OK"` | HTTP Server | `test_01_health_check` |
-| **Markdown `<img src>`** (`GET /d2/svg/<encoded>`) | Fetch encoded flowchart | `200 OK`, `image/svg+xml`, contains SVG tags and labels | Base64 decode, zlib decompress, D2 subprocess | `test_02_get_simple_diagram` |
-| **Sketch Query** (`?sketch=true`) | Request hand-drawn aesthetic | `200 OK`, rough SVG paths distinct from standard render | CLI flag propagation (`--sketch`) | `test_03_get_sketch_mode` |
-| **Theme Query** (`?theme=200`) | Request dark theme | `200 OK`, theme colors applied to SVG elements | CLI flag propagation (`--theme=200`) | `test_04_get_theme` |
-| **API Client** (`POST /d2/svg`) | Submit raw D2 script body | `200 OK`, SVG with nodes and arrows | Request body stream, D2 stdin/stdout | `test_05_post_raw_diagram` |
-| **Complex Topology** (`POST /d2/svg`) | Submit containerized architecture | `200 OK`, complex nested containers & cylinder shapes | D2 layout engine, font metrics | `test_06_render_example_architecture` |
-| **Sequence Diagram** (`POST /d2/svg`) | Submit OAuth sequence flow | `200 OK`, lifelines, actor boxes, step numbering | D2 sequence diagram engine | `test_07_render_example_sequence` |
-| **Caching Check** (Duplicate GET) | Request identical diagram URL twice | Second request headers contain `X-Cache: HIT` | Memory LRU cache | `test_08_lru_caching` |
-| **Malformed Payload** (`GET /d2/svg/invalid!!`) | Submit un-decodable string | `400 Bad Request`, error details in body | Base64/zlib error handling | `test_09_invalid_base64_returns_400` |
-| **Syntax Error** (`POST /d2/svg` bad syntax) | Submit unclosed bracket | `400 Bad Request`, compiler stderr in body | D2 subprocess error capture | `test_10_invalid_d2_syntax_returns_400` |
-| **Missing Route** (`GET /unknown`) | Request non-existent path | `404 Not Found` | Router fallthrough | `test_11_unmatched_route_returns_404` |
-| **Oversized Body** (`POST` with huge `Content-Length`) | Declare a 50 MiB body | `413`, body never read | Size limit | `test_12_oversized_post_returns_413` |
-| **Decompression Bomb** (`GET` tiny payload, 5 MiB inflated) | Submit highly compressed text | `413` | Bounded inflate | `test_13_decompression_bomb_returns_413` |
-| **Slow Render** (`POST` while `d2` hangs) | Run a server whose `d2` sleeps, with a 1 s limit | `504` within seconds | Subprocess timeout | `test_14_slow_render_returns_504` (starts its own server; no Docker needed) |
-| **Strict HTTP Client** (any error, GET and POST) | Read the raw reply from a socket | One-line status (`Bad Request`, `Not Found`, `Payload Too Large`, `Gateway Timeout`), `text/plain; charset=utf-8` body with the message | Socket, HTTP framing | `test_15`–`test_21`, and the 504 raw check in `test_14` |
-| **Icon URL in a diagram** (`icon: http://...`) | Point the icon at a recording stand-in host, and at private, link-local and metadata addresses | `200`, zero requests reach the stand-in, URL kept as `<image href>`, renders in under 5 s | D2 `--bundle=false`, network | `test_22`, `test_23` |
-| **Import in a diagram** (`...@name`) | Run a stand-in `d2` that reports its flags and working directory | `--bundle=false` present, working directory empty and not the server directory | Subprocess `cwd` | `test_24` (starts its own server; no Docker needed) |
-| **Documentation reader** (copy a payload from the docs) | Decode and render every payload in README.md, docs/, examples/ | `200` with SVG for each | zlib, base64, D2 | `test_25` |
+| Health probe, `GET /health` | Query the container | `200`, body `OK` | HTTP server | `test_01_health_check` |
+| Markdown `<img src>`, `GET /d2/svg/<payload>` | Fetch an encoded flowchart | `200`, `image/svg+xml`, labels present | Base64, zlib, D2 subprocess | `test_02_get_simple_diagram` |
+| Sketch query, `?sketch=true` | Request the hand-drawn look | `200`, output differs from the plain render | CLI flag | `test_03_get_sketch_mode` |
+| Theme query, `?theme=200` | Request a dark theme | `200`, SVG returned | CLI flag | `test_04_get_theme` |
+| API client, `POST /d2/svg` | Send raw D2 text | `200`, nodes and arrows present | Request body, D2 stdin/stdout | `test_05_post_raw_diagram` |
+| Complex topology | Post `examples/architecture.d2` | `200`, nested containers and cylinders | Layout engine, fonts | `test_06_render_example_architecture` |
+| Sequence diagram | Post `examples/sequence.d2` | `200`, actors and steps | Sequence engine | `test_07_render_example_sequence` |
+| Cache | Request one diagram twice | First `X-Cache: MISS`, then `HIT` | LRU cache | `test_08_lru_caching` |
+| Malformed payload | `GET` an undecodable string | `400` | Base64, zlib errors | `test_09_invalid_base64_returns_400` |
+| Syntax error | Post an unclosed bracket | `400`, compiler message in body | D2 stderr capture | `test_10_invalid_d2_syntax_returns_400` |
+| Unknown route | `GET /non_existent_endpoint` | `404` | Router | `test_11_unmatched_route_returns_404` |
+| Oversized body | Declare a 50 MiB `POST` | `413`, body never read | Size limit | `test_12_oversized_post_returns_413` |
+| Decompression bomb | `GET` a tiny payload that inflates to 5 MiB | `413` | Bounded inflate | `test_13_decompression_bomb_returns_413` |
+| Slow render | Post while a stand-in `d2` sleeps, with a 1 s limit | `504` within seconds, one-line status, text body | Subprocess timeout | `test_14_slow_render_returns_504` (starts its own server) |
+| Strict HTTP client | Read each error reply from a raw socket | One-line status (`Bad Request`, `Not Found`, `Payload Too Large`), `text/plain; charset=utf-8` body with the message, for GET and POST | Socket, HTTP framing | `test_15` to `test_21`, `test_26` (unsupported methods) |
+| Icon URL in a diagram | Point `icon:` at a recording stand-in host | `200`, zero requests reach the host, URL kept as `<image href>` | `--bundle=false`, network | `test_22_icon_urls_trigger_no_outbound_request` |
+| Private, link-local and metadata icon URLs | Post diagrams naming `127.0.0.1`, `169.254.169.254`, `metadata.google.internal` | `200` in under 5 s | `--bundle=false`, network | `test_23_private_and_metadata_icon_urls_still_render` |
+| Import in a diagram | Run a stand-in `d2` that reports its flags and directory | `--bundle=false` present, working directory empty and not the server directory | Subprocess `cwd` | `test_24_compile_runs_offline_in_an_empty_directory` (starts its own server) |
+| Reader copying a payload | Decode and render every payload in README.md, docs/, examples/ | `200` with SVG each; the API reference payload decodes to `examples/hello.d2` | zlib, base64, D2 | `test_25`, `test_27` |
+| Reader viewing a diagram | Re-render every `.d2` under `docs/diagrams/` and `examples/`; compare embedded sources | Committed SVGs match fresh renders; embedded code matches its `.d2` file | D2 layout, fonts | `test_28_committed_diagrams_are_current` |
 
----
+## Run the automated suite
 
-## 3. How to Run Tests
+Build and start the container, then run the tests against it. `--add-host` lets the icon test reach the host from inside the container:
 
-### Running Against the Docker Container (Recommended)
+```bash
+docker build -t d2-renderer:test .
+docker run -d --name d2-test -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test
+python3 -m unittest discover -s tests -v
+docker rm -f d2-test
+```
 
-1. **Build the container:**
-   ```bash
-   docker build -t d2-renderer:test .
-   ```
+- **`TEST_TARGET_URL`:** the server under test. Default `http://127.0.0.1:8080`.
+- **`TEST_STANDIN_HOST`:** the test machine as the server sees it. Default `host.docker.internal`. Set it when the server runs outside Docker Desktop.
+- **Without Docker:** install D2 (`brew install d2`), run `python3 server.py` in the background, then run the same test command.
+- **CI:** the `test` job in [ci.yml](./.github/workflows/ci.yml) runs this suite on every push and pull request.
 
-2. **Run the container locally:**
-   ```bash
-   docker run -d --name d2-test-instance -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test
-   ```
+## Sabotage checks
 
-3. **Execute the automated test suite:**
-   ```bash
-   python3 -m unittest discover -s tests -v
-   ```
+A check that cannot fail proves nothing. These deliberate breaks each make a named test fail, and the code is restored afterward:
 
-4. **Tear down test container:**
-   ```bash
-   docker rm -f d2-test-instance
-   ```
+| Break | Failing test |
+| :--- | :--- |
+| Send errors through `send_error` with the message as the reason | `test_15` to `test_21` |
+| Remove `--bundle=false` | `test_22`, `test_24` |
+| Remove `cwd=` from the compile call | `test_24` |
+| Corrupt one payload in a doc | `test_25` |
+| Edit a `.d2` file without regenerating its SVG | `test_28` |
 
-`TEST_STANDIN_HOST` names the test machine as the server sees it (default `host.docker.internal`). Set it when the server runs somewhere else.
+## Visual verification
 
-### Running Locally (Native Python without Docker)
-
-If you have `d2` installed locally on your host (`brew install d2`):
-
-1. **Start the local server:**
-   ```bash
-   python3 server.py &
-   SERVER_PID=$!
-   ```
-
-2. **Run the test suite:**
-   ```bash
-   python3 -m unittest discover -s tests -v
-   ```
-
-3. **Stop the server:**
-   ```bash
-   kill $SERVER_PID
-   ```
-
----
-
-## 4. Visual Verification
-
-### Render check page (end of every session)
-
-Status codes do not prove a diagram looks right. Generate a page that shows every sample diagram from the local container and, optionally, the deployed service:
+A `200` status does not prove a diagram looks right. Generate a page that shows every sample diagram from the local container and, optionally, the deployed service:
 
 ```bash
 RENDERER_REMOTE_URL=<SERVICE_URL> python3 scripts/build-render-check.py
 python3 -m http.server -d render-check <PORT>
 ```
 
-Open `http://localhost:<PORT>/`, check that every image appears in each column with readable labels, and that sketch, theme and layout variants visibly differ from the plain ones. Omit `RENDERER_REMOTE_URL` to check only the local column.
+Open `http://localhost:<PORT>/` and confirm for every image:
 
-### Before/after behavior probe
+- **Presence:** each image appears in each column, with no broken-image icon.
+- **Legibility:** labels are readable, not clipped or overlapping.
+- **Variants:** sketch, theme and layout variants visibly differ from the plain render.
 
-Compare two builds, or a deployed service with a new local image, with one read-only script (about a dozen small requests):
+Omit `RENDERER_REMOTE_URL` to check only the local column. The generated page is git-ignored.
+
+The suite also writes SVGs to `tests/output/` (git-ignored). Open them in a browser to check fonts, arrows and the hand-drawn look.
+
+## Compare two builds
+
+Run the probe against each target, then compare the tables. It is read-only and sends about a dozen small requests:
 
 ```bash
 python3 scripts/probe-behavior.py <BASE_URL>
 ```
 
-Run it against each target and diff the tables. It reports status-line shape, error bodies, tala support, Node `fetch` parsing, and how icon URLs (public, loopback, link-local, cloud metadata) are handled.
+It reports status-line shape, error content type, tala support, Node `fetch` parsing, and how icon URLs are handled. Use it before and after a deploy.
 
-### Multi-architecture image
+## Multi-architecture image
 
-Locally: `docker buildx build --platform linux/amd64,linux/arm64 .`. After CI publishes, `docker buildx imagetools inspect ghcr.io/<OWNER>/d2-renderer:latest` lists both platforms, and the publish job fails if either is missing. On an Apple Silicon Mac the arm64 image runs natively; run it, then render a diagram with `?layout=tala`.
+- **Local build:** `docker buildx build --platform linux/amd64,linux/arm64 .`
+- **Published image:** `docker buildx imagetools inspect ghcr.io/<OWNER>/d2-renderer:latest` lists both platforms. The publish job fails when either is missing.
+- **Native check:** on an Apple Silicon Mac, `docker pull` the published image without `--platform`, run it, then render a diagram with `?layout=tala`.
 
-### Saved SVG files
+## Documentation diagrams
 
-The test suite automatically writes rendered SVG artifacts into `tests/output/`:
-
-* `tests/output/01_simple_diagram.svg`
-* `tests/output/02_sketch_mode.svg`
-* `tests/output/03_theme_200.svg`
-* `tests/output/04_post_rendered.svg`
-* `tests/output/05_architecture.svg`
-* `tests/output/06_sequence.svg`
-
-Open these files in a browser to visually verify that text labels are rendered cleanly with DejaVu fonts, arrows align properly, and sketch mode displays the intended hand-drawn look.
-
----
+- **Rebuild:** `python3 scripts/build-doc-diagrams.py` with the container running.
+- **Verify:** `python3 scripts/build-doc-diagrams.py --check`. `test_28` runs the same check.
+- **Look:** open the page that shows the diagram, for example the README, in a browser. Confirm the image has a width and its text is readable.
 
 ## Navigation
 
 - [Back to Project README](./README.md)
-- [Example Diagrams](./examples/README.md)
+- [Examples](./examples/README.md)
+- [Documentation index](./docs/README.md)

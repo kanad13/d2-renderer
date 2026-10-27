@@ -11,7 +11,7 @@ If an agent is following this: ask the user for each value in the table below be
 | `<PROJECT_ID>`         | New Google Cloud project ID, globally unique, for example `d2-renderer-<random>`                                                        | You choose it                                                         |
 | `<BILLING_ACCOUNT_ID>` | An **open** billing account to attach                                                                                                   | `gcloud billing accounts list`                                        |
 | `<GITHUB_REPO>`        | `<owner>/<repo>` that may deploy                                                                                                        | Your fork's address on GitHub                                         |
-| `<REGION>`             | Cloud Run region. Use a Tier 1 EU region so the free tier applies fully (see [operations](./030-operations.md)). Default `europe-west1` | Your data-location needs                                              |
+| `<REGION>`             | Cloud Run region. Use a Tier 1 EU region so the free tier applies fully (see [operations](./050-operations.md)). Default `europe-west1` | Your data-location needs                                              |
 | `<BUDGET_AMOUNT>`      | Alert threshold in the billing account's currency, for example `5USD`                                                                   | Currency from `gcloud billing accounts describe <BILLING_ACCOUNT_ID>` |
 
 ## Prerequisites
@@ -104,4 +104,4 @@ Draw `d2` fences in VS Code with [Lightweight Markdown Preview](https://marketpl
 ## Navigation
 
 - [Documentation index](./README.md)
-- Previous: [Architecture](./010-architecture.md) · Next: [Operations](./030-operations.md)
+- Previous: [Architecture](./030-architecture.md) · Next: [Operations](./050-operations.md)

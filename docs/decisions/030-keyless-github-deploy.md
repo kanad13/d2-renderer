@@ -19,7 +19,7 @@ Use workload identity federation. GitHub signs a short-lived token for each run;
 ## Consequences
 
 - Forks and pull requests cannot deploy: their tokens fail the condition.
-- A fork owner repeats the setup with their own repository name ([runbook](../020-deploy-gcp.md)).
+- A fork owner repeats the setup with their own repository name ([runbook](../040-deploy-gcp.md)).
 - A leaked workflow file reveals identifiers but grants nothing.
 
 ## Navigation

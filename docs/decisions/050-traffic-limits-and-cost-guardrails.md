@@ -10,7 +10,7 @@ The service is public and each uncached render starts a process. Google Cloud ha
 ## Decision
 
 - Cloud Run: one instance maximum, minimum zero, concurrency 8, request timeout 30 s, 1 vCPU and 512 MiB.
-- Service: 20 s render limit, 256 KiB input limit, 256-entry cache (see [architecture](../010-architecture.md)).
+- Service: 20 s render limit, 256 KiB input limit, 256-entry cache (see [architecture](../030-architecture.md)).
 - A budget alert at 50% and 100% of a small amount.
 
 ## Rejected
@@ -23,7 +23,7 @@ The service is public and each uncached render starts a process. Google Cloud ha
 
 - Worst-case cost is bounded in rate but not in monthly total. A sustained flood would be noticed through the alert, not stopped.
 - Normal personal use stays far inside the free allowance.
-- Limits are env-tunable without a rebuild ([operations](../030-operations.md#tuning-limits)).
+- Limits are env-tunable without a rebuild ([operations](../050-operations.md#tuning-limits)).
 
 ## Navigation
 

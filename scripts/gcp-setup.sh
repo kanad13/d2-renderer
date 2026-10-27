@@ -3,7 +3,7 @@
 #
 # Why a script: the steps must be repeatable by anyone who forks this repo, so every
 # account-specific value comes from an environment variable, never from this file.
-# Run it as an account that can create projects and link billing. See docs/020-deploy-gcp.md.
+# Run it as an account that can create projects and link billing. See docs/040-deploy-gcp.md.
 #
 # Required:
 #   PROJECT_ID          new or existing project id (globally unique)
