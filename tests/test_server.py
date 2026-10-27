@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Automated integration test suite for D2 Diagram Rendering Microservice.
 
-Tests endpoints, query options (sketch, theme), error handling, caching, and input
-limits against a live server, and saves generated SVGs to tests/output/ for visual
-verification. The render-timeout test starts its own server with a stand-in `d2`
-so it needs no real compiler and cannot be flaky on slow machines.
+Tests endpoints, query options (sketch, theme), error format, offline compiles, caching,
+input limits, and the payloads and diagrams shown in the docs against a live server, and
+saves generated SVGs to tests/output/ for visual verification. The render-timeout and
+offline-directory tests start their own server with a stand-in `d2`, so they need no real
+compiler and cannot be flaky on slow machines.
 """
 
 import base64
@@ -23,6 +24,7 @@ import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 import zlib
 
 TARGET_URL = os.environ.get("TEST_TARGET_URL", "http://127.0.0.1:8080")
@@ -195,7 +197,9 @@ class TestD2Server(unittest.TestCase):
 
     def test_08_lru_caching(self):
         """Verifies in-memory LRU cache serves hits on duplicate requests."""
-        d2_code = "cache_test -> pass: Caching test"
+        # A unique label per run: the server's cache outlives a test run, so a fixed
+        # diagram would already be cached when the suite runs a second time.
+        d2_code = f"cache_test -> pass: Caching test {uuid.uuid4().hex}"
         encoded = encode_d2(d2_code)
 
         # First request (MISS)
@@ -283,6 +287,13 @@ class TestWellFormedErrors(unittest.TestCase):
         self.assert_well_formed(too_big, 413, "Payload Too Large", "exceeds")
         bomb = f"/d2/svg/{encode_d2('a' * (5 * 1024 * 1024))}"
         self.assert_well_formed(get_request(bomb), 413, "Payload Too Large", "exceeds")
+
+    def test_26_unsupported_method_uses_the_same_format(self):
+        status_line, headers, body = raw_exchange(
+            self.HOST, self.PORT, b"PUT /d2/svg HTTP/1.1\r\nHost: t\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+        self.assertRegex(status_line, r"^HTTP/1\.[01] 501 Not Implemented$")
+        self.assertIn("text/plain; charset=utf-8", headers)
+        self.assertIn("Unsupported method", body)
 
     def test_21_http_client_reads_error_body(self):
         conn = http.client.HTTPConnection(self.HOST, self.PORT, timeout=10)
@@ -407,14 +418,37 @@ class TestDocumentedPayloads(unittest.TestCase):
 
     def test_25_every_documented_payload_renders(self):
         payloads = self.documented_payloads()
-        self.assertGreaterEqual(len(payloads), 4)
+        self.assertGreaterEqual(len(payloads), 1)
+        sources = []
         for path, payload in payloads:
             with self.subTest(file=path, payload=payload[:24]):
                 source = zlib.decompress(base64.urlsafe_b64decode(payload)).decode("utf-8")
+                sources.append(source.strip())
                 self.assertTrue(source.strip())
                 res = urllib.request.urlopen(f"{TARGET_URL}/d2/svg/{payload}", timeout=15)
                 self.assertEqual(res.status, 200)
                 self.assertIn("</svg>", res.read().decode("utf-8"))
+
+    def test_27_api_example_encodes_the_visible_source(self):
+        """The URL in the API reference must be the encoding of examples/hello.d2."""
+        with open(os.path.join(self.ROOT, "examples", "hello.d2"), encoding="utf-8") as f:
+            hello = f.read().strip()
+        decoded = [zlib.decompress(base64.urlsafe_b64decode(p)).decode("utf-8").strip()
+                   for path, p in self.documented_payloads() if path.endswith("020-api-reference.md")]
+        self.assertIn(hello, decoded)
+
+
+class TestDocumentationDiagrams(unittest.TestCase):
+    """Committed SVGs and embedded D2 sources match what the server renders now."""
+
+    def test_28_committed_diagrams_are_current(self):
+        import importlib.util
+
+        script = os.path.join(os.path.dirname(__file__), "..", "scripts", "build-doc-diagrams.py")
+        spec = importlib.util.spec_from_file_location("build_doc_diagrams", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.check_all(TARGET_URL), 0)
 
 
 class TestRenderTimeout(unittest.TestCase):

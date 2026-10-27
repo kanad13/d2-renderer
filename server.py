@@ -5,10 +5,17 @@ A lightweight, zero-dependency HTTP server that compiles D2 diagram specificatio
 into SVG graphics on the fly. Supports Kroki-compatible GET URLs (deflate + base64url)
 and raw POST payloads, with LRU memory caching and query-based styling options.
 
-The service is meant to sit on the public internet behind <img> tags, so it has no
-authentication. Instead, every render is bounded: input size (MAX_SOURCE_BYTES),
-runtime (RENDER_TIMEOUT_SECONDS) and cache size are capped so one caller cannot exhaust
-a small instance. Cloud Run adds the remaining caps (concurrency, instance count).
+The same image serves two audiences: a developer running it on a laptop (the VS Code
+extension draws every d2 fence through it) and a public instance behind <img> tags.
+The public case has no authentication, so every render is bounded: input size
+(MAX_SOURCE_BYTES), runtime (RENDER_TIMEOUT_SECONDS) and cache size are capped so one
+caller cannot exhaust a small instance. Cloud Run adds the remaining caps (concurrency,
+instance count).
+
+Two invariants keep an open instance safe: each compile runs offline (--bundle=false) in
+an empty directory, so a diagram can neither fetch addresses nor import server files; and
+every error reply has a one-line status with the message in a text/plain body, because
+strict HTTP clients reject multi-line status lines.
 """
 
 import base64
@@ -20,6 +27,7 @@ import subprocess
 import tempfile
 import urllib.parse
 import zlib
+from http import HTTPStatus
 from typing import Tuple
 
 # Cloud Run injects PORT; 8080 keeps local and Docker runs unchanged.
@@ -120,13 +128,18 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         multi-line compiler message there breaks strict HTTP clients such as Node's fetch.
         """
         body = message.encode("utf-8")
-        self.send_response(code, ERROR_REASONS[code])
+        self.send_response(code, ERROR_REASONS.get(code) or HTTPStatus(code).phrase)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
+
+    def send_error(self, code, message=None, explain=None):
+        """Sends errors that http.server raises itself (unsupported methods, bad request
+        lines) in the same plain-text format as the service's own errors."""
+        self._send_error_text(code, message or HTTPStatus(code).phrase)
 
     def _send_svg(self, svg_bytes: bytes, is_cached: bool = False):
         """Sends a 200 OK response with SVG content and caching headers."""
