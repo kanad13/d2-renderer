@@ -1,0 +1,8 @@
+vars: {
+  d2-config: {
+    layout-engine: dagre
+  }
+}
+direction: right
+Browser -> d2-renderer: GET diagram URL
+d2-renderer -> Browser: SVG

@@ -1,0 +1,21 @@
+direction: down
+
+diagram: "Diagram text with\nicon: https://..."
+compile: "One compile" {
+  direction: down
+  tmp: "Fresh empty directory\n(imports find nothing)"
+  flag: "d2 --bundle=false\n(nothing is downloaded)"
+  tmp -> flag
+}
+svg: "SVG keeps the icon URL\nas an image reference"
+net: "Network requests" {
+  style.stroke: "#C5221F"
+  style.stroke-dash: 3
+}
+
+diagram -> compile
+compile -> svg
+compile -> net: none {
+  style.stroke: "#C5221F"
+  style.stroke-dash: 3
+}

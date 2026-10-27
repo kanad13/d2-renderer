@@ -1,0 +1,19 @@
+direction: right
+
+editor: VS Code {
+  md: "Markdown file\nwith a d2 fence"
+  ext: Lightweight Markdown Preview
+  md -> ext
+}
+
+box: Your machine {
+  container: d2-renderer container {
+    server: HTTP service
+    d2: d2 compiler\n(offline, empty directory)
+    server -> d2: source text
+    d2 -> server: SVG
+  }
+}
+
+editor.ext -> box.container.server: "img src = localhost:8080/d2/svg/..."
+box.container.server -> editor.ext: SVG diagram

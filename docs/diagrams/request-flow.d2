@@ -1,0 +1,25 @@
+direction: down
+
+req: Request {
+  get: "GET /d2/svg/<payload>"
+  post: "POST /d2/svg (raw text)"
+}
+
+limits: Size check {
+  label: "Body or decoded text\nover MAX_SOURCE_BYTES?"
+}
+cache: LRU cache
+compile: "d2 --bundle=false\nin an empty directory"
+reply: SVG response
+errors: "Error reply\n400 / 413 / 504\none-line status, text body" {
+  style.stroke: "#C5221F"
+}
+
+req.get -> limits
+req.post -> limits
+limits -> errors: yes (413)
+limits -> cache: no
+cache -> reply: hit
+cache -> compile: miss
+compile -> reply: stored in cache
+compile -> errors: syntax error (400)\ntimeout (504)

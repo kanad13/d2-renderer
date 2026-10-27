@@ -1,0 +1,27 @@
+direction: down
+
+dev: "git push to main"
+
+gha: GitHub Actions {
+  direction: down
+  test: "1. Build and test"
+  publish: "2. Publish amd64 + arm64 image"
+  deploy: "3. Deploy by commit SHA"
+  test -> publish -> deploy
+}
+
+ghcr: ghcr.io image {
+  shape: cylinder
+}
+
+run: Cloud Run (EU region) {
+  svc: "d2-renderer\nmax 1 instance"
+}
+
+pages: Public pages with img tags
+
+dev -> gha.test
+gha.publish -> ghcr: push
+gha.deploy -> run.svc: keyless deploy
+ghcr -> run.svc: pulled
+pages -> run.svc: GET diagram
