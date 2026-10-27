@@ -11,6 +11,7 @@ import base64
 import http.client
 import http.server
 import os
+import re
 import socket
 import stat
 import subprocess
@@ -382,6 +383,38 @@ class TestOfflineCompile(unittest.TestCase):
             finally:
                 server.terminate()
                 server.wait(timeout=5)
+
+
+class TestDocumentedPayloads(unittest.TestCase):
+    """Every encoded diagram shown in the docs decodes and renders."""
+
+    ROOT = os.path.join(os.path.dirname(__file__), "..")
+    URL_PAYLOAD = re.compile(r"/d2/svg/([A-Za-z0-9_=-]{16,})")
+    BARE_PAYLOAD = re.compile(r"^\s*([A-Za-z0-9_-]{60,}=*)\s*$", re.MULTILINE)
+
+    def documented_payloads(self):
+        found = []
+        paths = [os.path.join(self.ROOT, "README.md")]
+        for folder in ("docs", "examples"):
+            for dirpath, _, names in os.walk(os.path.join(self.ROOT, folder)):
+                paths += [os.path.join(dirpath, n) for n in names if n.endswith(".md")]
+        for path in paths:
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+            for match in self.URL_PAYLOAD.findall(text) + self.BARE_PAYLOAD.findall(text):
+                found.append((os.path.relpath(path, self.ROOT), match))
+        return found
+
+    def test_25_every_documented_payload_renders(self):
+        payloads = self.documented_payloads()
+        self.assertGreaterEqual(len(payloads), 4)
+        for path, payload in payloads:
+            with self.subTest(file=path, payload=payload[:24]):
+                source = zlib.decompress(base64.urlsafe_b64decode(payload)).decode("utf-8")
+                self.assertTrue(source.strip())
+                res = urllib.request.urlopen(f"{TARGET_URL}/d2/svg/{payload}", timeout=15)
+                self.assertEqual(res.status, 200)
+                self.assertIn("</svg>", res.read().decode("utf-8"))
 
 
 class TestRenderTimeout(unittest.TestCase):

@@ -84,8 +84,19 @@ Renders an SVG from a zlib-compressed, URL-safe Base64 encoded string.
 | `layout` | string | `dagre` | Layout engine to use (`dagre`, `elk`, `tala`). |
 
 #### Example Usage
+
+Source:
+
+```d2
+direction: right
+Browser -> d2-renderer: GET diagram URL
+d2-renderer -> Browser: SVG
+```
+
+Embed (the encoder under [Client-Side URL Encoding](#client-side-url-encoding) produced this string from the source above):
+
 ```html
-<img src="http://localhost:8080/d2/svg/eNqLDslMSVTISyzJSVXIyS_PMFTIT1NIy89XKE7NSy3KL1JwBPI980oSc9MVghKT80tS01OKUqGGSnKLi0tKUsvy89A1pmfm5aCZAwD2Hhz_" alt="Architecture Diagram" />
+<img src="http://localhost:8080/d2/svg/eNpLySxKTS7JzM-zUijKTM8o4XIqyi8vTi1S0LVTSDHSLUrNS0ktSi2yUnB3DVFIyUxML0rMVQgN8uFCkgSphWqzUggOc-cCAOsaHDY=" alt="Browser to d2-renderer round trip" />
 ```
 
 ---
