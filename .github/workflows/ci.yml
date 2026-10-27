@@ -105,8 +105,9 @@ jobs:
   deploy:
     name: Deploy to Cloud Run
     needs: publish
-    # Skipped on forks and fresh clones until the GCP_* repository variables exist.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
+    # Skipped on forks and fresh clones until the GCP_* repository variables exist, and
+    # while DEPLOY_ENABLED is 'false' (the pause switch, see docs/050-operations.md).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != '' && vars.DEPLOY_ENABLED != 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: read

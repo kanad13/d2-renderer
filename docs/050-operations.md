@@ -90,6 +90,40 @@ gcloud run services update d2-renderer --project=<PROJECT_ID> --region=<REGION> 
 
 Concurrency, memory and instance limits live in the deploy job of [ci.yml](../.github/workflows/ci.yml). Change them there so the next deploy keeps them.
 
+## Take the service offline and bring it back
+
+Cloud Run has no stop button. Two steps give the same effect, and both are reversible.
+
+- **Take it offline:**
+  - Remove public access. Requests then return `403`. Allow up to two minutes for the change to apply.
+
+```bash
+gcloud run services remove-iam-policy-binding d2-renderer --project=<PROJECT_ID> --region=<REGION> --member=allUsers --role=roles/run.invoker
+```
+
+- **Keep pushes from reopening it:**
+  - The deploy job reads the repository variable `DEPLOY_ENABLED`. While it is `false`, a push to `main` still tests and publishes the image, and the deploy job is skipped.
+
+```bash
+gh variable set DEPLOY_ENABLED --body false
+```
+
+- **Bring it back:**
+  - Delete the variable, then push a commit or re-run the latest workflow (`gh run list -L 1` shows its `<RUN_ID>`). The deploy job restores public access with `--allow-unauthenticated`.
+
+```bash
+gh variable delete DEPLOY_ENABLED
+gh run rerun <RUN_ID>
+```
+
+  - To reopen without a deploy, add the binding back:
+
+```bash
+gcloud run services add-iam-policy-binding d2-renderer --project=<PROJECT_ID> --region=<REGION> --member=allUsers --role=roles/run.invoker
+```
+
+Decision record: [090](./decisions/090-deploy-pause-switch.md).
+
 ## Teardown
 
 Deleting the project removes the service, identities and trust setup in one step, and stops all billing from it.

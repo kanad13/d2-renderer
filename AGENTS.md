@@ -40,6 +40,7 @@ If a change breaks rendering, fix it before ending the session.
 - **Offline compile:** keep `--bundle=false` and the empty working directory ([decision 060](./docs/decisions/060-offline-compile-in-empty-directory.md)).
 - **Error replies:** go through `_send_error_text` so the status line stays one line.
 - **Cost safety:** the Cloud Run service must keep `max-instances` at 1 and stay in a Tier 1 EU region. Never create always-on instances.
+- **Pause switch:** the repository variable `DEPLOY_ENABLED=false` skips the deploy job. Do not remove it, and do not reopen the service, unless the user asks ([operations](./docs/050-operations.md#take-the-service-offline-and-bring-it-back)).
 - **Secrets:** none are used. Do not add credentials to the repo; deployment uses keyless GitHub-to-Google federation.
 - **Docs hygiene:** after doc changes, run the `markdown-audit` checks (numbering, README per folder, working relative links).
 - **Docs voice:** state what the service does, in the present tense. Keep factual limits as plain statements of fact.
