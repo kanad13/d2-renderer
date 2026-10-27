@@ -29,6 +29,16 @@ INLINE_CASES = [
     ("Sketch + theme 4", "a -> b -> c -> a: loop", "?sketch=true&theme=4"),
     ("ELK layout", "direction: right\na -> b -> c\na -> c\nb -> d", "?layout=elk"),
     (
+        "TALA layout (bundled since D2 v0.9.0)",
+        "client -> gateway -> auth\ngateway -> orders -> db\norders -> payments -> db\nauth -> db",
+        "?layout=tala",
+    ),
+    (
+        "Same graph, dagre layout",
+        "client -> gateway -> auth\ngateway -> orders -> db\norders -> payments -> db\nauth -> db",
+        "?layout=dagre",
+    ),
+    (
         "SQL table",
         "users: {\n  shape: sql_table\n  id: int {constraint: primary_key}\n  email: varchar\n}\n"
         "orders: {\n  shape: sql_table\n  id: int {constraint: primary_key}\n  user_id: int {constraint: foreign_key}\n}\n"
