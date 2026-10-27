@@ -1,0 +1,47 @@
+direction: right
+
+title: Microservice Architecture
+
+users: Web & Mobile Users {
+  shape: person
+}
+
+gateway: API Gateway {
+  shape: hexagon
+  style.fill: "#E8F0FE"
+}
+
+services: Internal Services {
+  style.stroke-dash: 3
+
+  auth: Authentication Service {
+    shape: package
+  }
+
+  billing: Billing Service {
+    shape: package
+  }
+
+  renderer: D2 Rendering Service {
+    shape: package
+    style.fill: "#E6F4EA"
+  }
+}
+
+storage: Data Layer {
+  db: PostgreSQL {
+    shape: cylinder
+  }
+  cache: Redis {
+    shape: cylinder
+  }
+}
+
+users -> gateway: HTTPS Requests
+gateway -> services.auth: Validate Token
+gateway -> services.renderer: Render Diagram (SVG)
+gateway -> services.billing: Process Invoices
+
+services.auth -> storage.db: Query Credentials
+services.renderer -> storage.cache: Check Render Cache
+services.billing -> storage.db: Write Transaction

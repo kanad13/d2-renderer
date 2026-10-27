@@ -1,0 +1,17 @@
+shape: sequence_diagram
+
+browser: Web Browser
+app: Web App Server
+auth: OAuth Provider
+db: User Database
+
+browser -> app: 1. Click "Sign in with OAuth"
+app -> auth: 2. Redirect to Authorization URL
+auth -> browser: 3. Prompt user consent
+browser -> auth: 4. User grants permission
+auth -> app: 5. Return Authorization Code
+app -> auth: 6. Exchange code for Access Token
+auth -> app: 7. Deliver Access Token + User Info
+app -> db: 8. Upsert user record
+db -> app: 9. Record confirmed
+app -> browser: 10. Issue session cookie and redirect to dashboard
