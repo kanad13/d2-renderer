@@ -12,15 +12,15 @@ How to run `d2-renderer`, call it, deploy it, operate it, and why it is built th
 
 ## Contents
 
-| Document | Summary |
-| :--- | :--- |
-| [010-run-locally.md](./010-run-locally.md) | Start, update, configure and troubleshoot the container on your machine. |
-| [020-api-reference.md](./020-api-reference.md) | Endpoints, query parameters, encoding, error replies and rendering rules. |
-| [030-architecture.md](./030-architecture.md) | Components, request flow, offline compile, deployment and limits, with diagrams. |
-| [040-deploy-gcp.md](./040-deploy-gcp.md) | Runbook: one-time Google Cloud setup, GitHub wiring, first deploy, verification. |
-| [050-operations.md](./050-operations.md) | Health checks, cost, tags, rollback, logs, tuning and teardown. |
-| [decisions/](./decisions/README.md) | Decision records: what was chosen, what was rejected, and why. |
-| [diagrams/](./diagrams/README.md) | D2 sources for the diagrams in these docs. |
+| Document                                       | Summary                                                                          |
+| :--------------------------------------------- | :------------------------------------------------------------------------------- |
+| [010-run-locally.md](./010-run-locally.md)     | Start, update, configure and troubleshoot the container on your machine.         |
+| [020-api-reference.md](./020-api-reference.md) | Endpoints, query parameters, encoding, error replies and rendering rules.        |
+| [030-architecture.md](./030-architecture.md)   | Components, request flow, offline compile, deployment and limits, with diagrams. |
+| [040-deploy-gcp.md](./040-deploy-gcp.md)       | Runbook: one-time Google Cloud setup, GitHub wiring, first deploy, verification. |
+| [050-operations.md](./050-operations.md)       | Health checks, cost, tags, rollback, logs, tuning and teardown.                  |
+| [decisions/](./decisions/README.md)            | Decision records: what was chosen, what was rejected, and why.                   |
+| [diagrams/](./diagrams/README.md)              | D2 sources for the diagrams in these docs.                                       |
 
 ## Conventions
 

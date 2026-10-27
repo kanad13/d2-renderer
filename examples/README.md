@@ -6,16 +6,16 @@ Eight ready-made D2 diagrams with the pictures that d2-renderer draws from them.
 
 ## Contents
 
-| Source | Picture | Shows |
-| :--- | :--- | :--- |
-| [hello.d2](./hello.d2) | [hello.svg](./img/hello.svg) | The smallest useful diagram: two nodes and two labelled arrows. |
-| [architecture.d2](./architecture.d2) | [architecture.svg](./img/architecture.svg) | A multi-tier service topology with containers, shapes, colours and a database layer. |
-| [sequence.d2](./sequence.d2) | [sequence.svg](./img/sequence.svg) | An OAuth 2.0 authorization-code flow as a sequence diagram. |
+| Source                                               | Picture                                                    | Shows                                                                                |
+| :--------------------------------------------------- | :--------------------------------------------------------- | :----------------------------------------------------------------------------------- |
+| [hello.d2](./hello.d2)                               | [hello.svg](./img/hello.svg)                               | The smallest useful diagram: two nodes and two labelled arrows.                      |
+| [architecture.d2](./architecture.d2)                 | [architecture.svg](./img/architecture.svg)                 | A multi-tier service topology with containers, shapes, colours and a database layer. |
+| [sequence.d2](./sequence.d2)                         | [sequence.svg](./img/sequence.svg)                         | An OAuth 2.0 authorization-code flow as a sequence diagram.                          |
 | [aws-web-architecture.d2](./aws-web-architecture.d2) | [aws-web-architecture.svg](./img/aws-web-architecture.svg) | A three-tier AWS stack with nested VPC subnets, a queue and databases (light theme). |
-| [gcp-data-platform.d2](./gcp-data-platform.d2) | [gcp-data-platform.svg](./img/gcp-data-platform.svg) | A Google Cloud data pipeline from ingest to serving (dark theme). |
-| [checkout-sequence.d2](./checkout-sequence.d2) | [checkout-sequence.svg](./img/checkout-sequence.svg) | A checkout flow with a failure group (hand-drawn style, warm theme). |
-| [orders-schema.d2](./orders-schema.d2) | [orders-schema.svg](./img/orders-schema.svg) | A database schema with keys and relationships (dark mauve theme). |
-| [cicd-pipeline.d2](./cicd-pipeline.d2) | [cicd-pipeline.svg](./img/cicd-pipeline.svg) | A CI/CD pipeline with an approval gate and rollback (flagship theme). |
+| [gcp-data-platform.d2](./gcp-data-platform.d2)       | [gcp-data-platform.svg](./img/gcp-data-platform.svg)       | A Google Cloud data pipeline from ingest to serving (dark theme).                    |
+| [checkout-sequence.d2](./checkout-sequence.d2)       | [checkout-sequence.svg](./img/checkout-sequence.svg)       | A checkout flow with a failure group (hand-drawn style, warm theme).                 |
+| [orders-schema.d2](./orders-schema.d2)               | [orders-schema.svg](./img/orders-schema.svg)               | A database schema with keys and relationships (dark mauve theme).                    |
+| [cicd-pipeline.d2](./cicd-pipeline.d2)               | [cicd-pipeline.svg](./img/cicd-pipeline.svg)               | A CI/CD pipeline with an approval gate and rollback (flagship theme).                |
 
 ## Hello
 

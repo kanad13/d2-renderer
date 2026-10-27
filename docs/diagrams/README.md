@@ -6,12 +6,12 @@ The D2 sources for the pictures in the project docs. Each `.d2` file here become
 
 ## Contents
 
-| Source | Used in | Shows |
-| :--- | :--- | :--- |
-| [local-use.d2](./local-use.d2) | [README](../../README.md) | VS Code sending a `d2` fence to the local container. |
-| [request-flow.d2](./request-flow.d2) | [Architecture](../030-architecture.md) | Size check, cache, compile and error paths. |
+| Source                                     | Used in                                | Shows                                                |
+| :----------------------------------------- | :------------------------------------- | :--------------------------------------------------- |
+| [local-use.d2](./local-use.d2)             | [README](../../README.md)              | VS Code sending a `d2` fence to the local container. |
+| [request-flow.d2](./request-flow.d2)       | [Architecture](../030-architecture.md) | Size check, cache, compile and error paths.          |
 | [offline-compile.d2](./offline-compile.d2) | [Architecture](../030-architecture.md) | An empty directory and `--bundle=false` per compile. |
-| [deployment.d2](./deployment.d2) | [Architecture](../030-architecture.md) | A push to `main` reaching Cloud Run. |
+| [deployment.d2](./deployment.d2)           | [Architecture](../030-architecture.md) | A push to `main` reaching Cloud Run.                 |
 
 ## Rebuild
 
