@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   test:
@@ -52,6 +51,10 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Only this job writes packages; the test job and pull requests stay read-only.
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -74,6 +77,7 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha,format=short
+            type=raw,value=${{ github.sha }}
 
       - name: Build and push container image
         uses: docker/build-push-action@v5
@@ -84,3 +88,39 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Cloud Run
+    needs: publish
+    # Skipped on forks and fresh clones until the GCP_* repository variables exist.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # lets the job request the OIDC token Google verifies
+    steps:
+      - name: Authenticate to Google Cloud (keyless)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      # The full commit SHA tag is unique per build, so Cloud Run never serves a cached
+      # copy of an older image the way it could with :latest.
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: d2-renderer
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          region: ${{ vars.GCP_REGION }}
+          image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          timeout: 30s
+          flags: >-
+            --port=8080
+            --allow-unauthenticated
+            --min-instances=0
+            --max-instances=1
+            --concurrency=8
+            --cpu=1
+            --memory=512Mi
+            --service-account=${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
