@@ -1,0 +1,67 @@
+vars: {
+  d2-config: {
+    theme-id: 4
+  }
+}
+direction: right
+
+users: Users {
+  shape: person
+}
+dns: Route 53
+cdn: CloudFront
+waf: AWS WAF
+
+users -> dns: example.com
+users -> cdn: HTTPS
+cdn -> waf: inspect
+
+aws: AWS Region eu-west-1 {
+  s3: S3 static assets {
+    shape: cylinder
+  }
+
+  vpc: VPC 10.0.0.0/16 {
+    public: Public subnets {
+      alb: Application Load Balancer
+      nat: NAT gateway
+    }
+    private: Private subnets {
+      ecs: ECS Fargate service {
+        api1: API task
+        api2: API task
+        worker: Worker task
+      }
+      cache: ElastiCache Redis {
+        shape: cylinder
+      }
+    }
+    data: Data subnets {
+      rds: RDS PostgreSQL\nmulti-AZ {
+        shape: cylinder
+      }
+    }
+  }
+
+  sqs: SQS jobs queue {
+    shape: queue
+  }
+  logs: CloudWatch logs and alarms
+}
+
+dns -> cdn: alias record
+cdn -> aws.s3: /static/*
+waf -> aws.vpc.public.alb: /api/*
+aws.vpc.public.alb -> aws.vpc.private.ecs.api1
+aws.vpc.public.alb -> aws.vpc.private.ecs.api2
+aws.vpc.private.ecs.api1 -> aws.vpc.private.cache: sessions
+aws.vpc.private.ecs.api2 -> aws.vpc.private.cache: sessions
+aws.vpc.private.ecs.api1 -> aws.vpc.data.rds: SQL
+aws.vpc.private.ecs.api2 -> aws.vpc.data.rds: SQL
+aws.vpc.private.ecs.api1 -> aws.sqs: enqueue
+aws.sqs -> aws.vpc.private.ecs.worker: poll
+aws.vpc.private.ecs.worker -> aws.vpc.data.rds: SQL
+aws.vpc.private.ecs.worker -> aws.vpc.public.nat: outbound calls
+aws.vpc.private.ecs -> aws.logs: logs {
+  style.stroke-dash: 3
+}

@@ -1,0 +1,31 @@
+vars: {
+  d2-config: {
+    sketch: true
+    theme-id: 105
+  }
+}
+shape: sequence_diagram
+
+shopper: Shopper
+web: Web app
+orders: Order service
+pay: Payment provider
+stock: Inventory service
+
+shopper -> web: Click "Pay now"
+web -> orders: POST /orders
+orders -> stock: Reserve items
+stock -> orders: Reserved
+orders -> pay: Charge card
+pay -> pay: Check fraud rules
+pay -> orders: Approved
+orders -> stock: Commit reservation
+orders -> web: 201 Created
+web -> shopper: Show confirmation
+
+declined: If the card is declined {
+  pay -> orders: Declined
+  orders -> stock: Release reservation
+  orders -> web: 402 Payment required
+  web -> shopper: Show the error
+}

@@ -1,0 +1,64 @@
+vars: {
+  d2-config: {
+    theme-id: 201
+  }
+}
+direction: right
+
+sources: Sources {
+  apps: Mobile and web apps
+  iot: IoT devices
+  files: Partner CSV drops
+}
+
+gcp: Google Cloud project {
+  ingest: Ingest {
+    pubsub: Pub/Sub topics {
+      shape: queue
+    }
+    gcs: Cloud Storage landing bucket {
+      shape: cylinder
+    }
+  }
+
+  process: Process {
+    dataflow: Dataflow streaming job
+    dataproc: Dataproc Spark batch
+  }
+
+  warehouse: Warehouse {
+    raw: BigQuery raw {
+      shape: cylinder
+    }
+    curated: BigQuery curated {
+      shape: cylinder
+    }
+  }
+
+  serve: Serve {
+    looker: Looker dashboards
+    run: Cloud Run API
+    vertex: Vertex AI model endpoint
+  }
+
+  composer: Cloud Composer (Airflow) {
+    style.stroke-dash: 3
+  }
+  iam: IAM and VPC Service Controls {
+    style.stroke-dash: 3
+  }
+}
+
+sources.apps -> gcp.ingest.pubsub: events
+sources.iot -> gcp.ingest.pubsub: telemetry
+sources.files -> gcp.ingest.gcs: upload
+gcp.ingest.pubsub -> gcp.process.dataflow
+gcp.ingest.gcs -> gcp.process.dataproc
+gcp.process.dataflow -> gcp.warehouse.raw: stream insert
+gcp.process.dataproc -> gcp.warehouse.raw: batch load
+gcp.warehouse.raw -> gcp.warehouse.curated: scheduled SQL
+gcp.warehouse.curated -> gcp.serve.looker
+gcp.warehouse.curated -> gcp.serve.run: queries
+gcp.warehouse.curated -> gcp.serve.vertex: training data
+gcp.composer -> gcp.process: orchestrates
+gcp.composer -> gcp.warehouse: orchestrates

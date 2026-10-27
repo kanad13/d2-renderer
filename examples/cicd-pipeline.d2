@@ -1,0 +1,54 @@
+vars: {
+  d2-config: {
+    theme-id: 3
+  }
+}
+direction: right
+
+dev: Developer {
+  shape: person
+}
+
+repo: Git repository {
+  shape: cylinder
+}
+
+ci: CI pipeline {
+  lint: Lint and type check
+  unit: Unit tests
+  build: Build container image
+  scan: Vulnerability scan
+  lint -> unit -> build -> scan
+}
+
+registry: Container registry {
+  shape: cylinder
+}
+
+envs: Environments {
+  staging: Staging {
+    style.fill: "#E8F0FE"
+  }
+  approval: Manual approval {
+    shape: diamond
+  }
+  prod: Production {
+    style.fill: "#E6F4EA"
+  }
+  staging -> approval: smoke tests pass
+  approval -> prod: approved
+}
+
+alerts: Monitoring and alerts
+
+dev -> repo: git push
+repo -> ci.lint: webhook
+ci.scan -> registry: push image
+registry -> envs.staging: deploy
+envs.prod -> alerts: metrics
+alerts -> dev: page on failure {
+  style.stroke: "#C5221F"
+}
+envs.prod -> registry: rollback to previous tag {
+  style.stroke-dash: 3
+}
