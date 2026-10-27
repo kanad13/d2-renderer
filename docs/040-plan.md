@@ -4,7 +4,7 @@ Phases that took `d2-renderer` from a local container to a public EU deployment,
 
 | Phase                 | Outcome                                                                                              | Proof                                                                           | Status |
 | :-------------------- | :--------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------ | :----- |
-| 1. Harden the service | Time and size limits, env-driven port, pinned D2, tests for the 413 paths                            | `python3 -m unittest discover -s tests -v` against a rebuilt container          | Done   |
+| 1. Harden the service | Time and size limits, env-driven port, pinned D2, tests for the 413 and 504 paths                            | `python3 -m unittest discover -s tests -v` against a rebuilt container          | Done   |
 | 2. Google Cloud setup | Project, identities, keyless GitHub trust, budget alert, via [gcp-setup.sh](../scripts/gcp-setup.sh) | Script finishes and prints the five GitHub variables                            | Done   |
 | 3. First deploy       | Service live in an EU region with the agreed limits                                                  | Health check and diagrams return from the service address                       | Done   |
 | 4. Automatic deploys  | Push to `main` tests, publishes and deploys by commit SHA                                            | The `Deploy to Cloud Run` job succeeds and the live revision runs the new image | Done   |
@@ -17,7 +17,6 @@ Every coding session ends with the render check: `python3 scripts/build-render-c
 
 ## Open items
 
-- A test for the render time limit (needs a deliberately slow diagram).
 - Decide after a month of billing data whether the limits need adjusting.
 
 ## Navigation

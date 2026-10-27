@@ -8,10 +8,20 @@ Cloud Run bills only while a request runs, rounded up to 100 ms, and scales to z
 
 What to know:
 
-- The allowance is applied as a spending discount at **Tier 1** prices, shared across all projects on one billing account. Tier 1 EU regions: Belgium, Netherlands, Finland, Stockholm, Madrid, Milan, Paris. Frankfurt, London, Zurich and Berlin are Tier 2 and use the allowance up faster.
-- Outbound data is billed too. The free 1 GiB covers North America only, so EU traffic costs a little. SVGs are small and browsers cache them for a year.
-- `max-instances=1` limits how fast cost can grow. It does not limit the monthly total: one busy instance all month would exceed the free allowance.
-- A budget alert is the early warning. It only sends email; it does **not** stop spending. Google's [automatic billing shutoff](https://docs.cloud.google.com/billing/docs/how-to/disable-billing-with-notifications) disables billing for the whole project, may lag, and can delete resources, so it is deliberately not used here ([decision 050](./decisions/050-traffic-limits-and-cost-guardrails.md)).
+- **Free allowance by region:**
+  - Google applies the allowance as a spending discount at **Tier 1** prices, shared across all projects on one billing account.
+  - Tier 1 EU regions are Belgium, Netherlands, Finland, Stockholm, Madrid, Milan and Paris.
+  - Frankfurt, London, Zurich and Berlin are Tier 2 and use the allowance up faster.
+- **Outbound data:**
+  - Google bills outbound data. The free 1 GiB covers North America only, so EU traffic costs a little.
+  - SVGs are small, and browsers cache them for a year.
+- **What `max-instances=1` limits:**
+  - It limits how fast cost can grow.
+  - It does not limit the monthly total. One busy instance all month would exceed the free allowance.
+- **Budget alert:**
+  - The alert sends email. It does **not** stop spending.
+  - Google's [automatic billing shutoff](https://docs.cloud.google.com/billing/docs/how-to/disable-billing-with-notifications) disables billing for the whole project, may lag, and can delete resources.
+  - This project does not use the shutoff ([decision 050](./decisions/050-traffic-limits-and-cost-guardrails.md)).
 
 ## Rollback
 
