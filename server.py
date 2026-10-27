@@ -9,16 +9,28 @@ and raw POST payloads, with LRU memory caching and query-based styling options.
 import base64
 import functools
 import http.server
+import os
 import re
 import subprocess
 import urllib.parse
 import zlib
 from typing import Tuple
 
-PORT = 8080
+# Cloud Run injects PORT; 8080 keeps local and Docker runs unchanged.
+PORT = int(os.environ.get("PORT", "8080"))
+
+# Limits exist because the service is public: each render spawns a process, so
+# unbounded input or runtime would let one caller exhaust a small free-tier instance.
+RENDER_TIMEOUT_SECONDS = int(os.environ.get("RENDER_TIMEOUT_SECONDS", "20"))
+MAX_SOURCE_BYTES = int(os.environ.get("MAX_SOURCE_BYTES", str(256 * 1024)))
 
 
-@functools.lru_cache(maxsize=1024)
+class SourceTooLarge(ValueError):
+    """Raised when D2 source (raw or decompressed) exceeds MAX_SOURCE_BYTES."""
+
+
+# 256 entries keeps worst-case cache memory well inside a 512 MiB instance.
+@functools.lru_cache(maxsize=256)
 def compile_d2_cached(source_text: str, sketch: bool, theme: str, layout: str) -> bytes:
     """Executes the D2 CLI compiler with caching.
 
@@ -33,6 +45,7 @@ def compile_d2_cached(source_text: str, sketch: bool, theme: str, layout: str) -
 
     Raises:
         subprocess.CalledProcessError: If D2 compiler fails.
+        subprocess.TimeoutExpired: If rendering exceeds RENDER_TIMEOUT_SECONDS.
     """
     cmd = ["d2", "-", "-"]
 
@@ -48,6 +61,7 @@ def compile_d2_cached(source_text: str, sketch: bool, theme: str, layout: str) -
         input=source_text.encode("utf-8"),
         capture_output=True,
         check=True,
+        timeout=RENDER_TIMEOUT_SECONDS,
     )
     return proc.stdout
 
@@ -91,6 +105,33 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(svg_bytes)
 
+    def _render_and_send(self, d2_code: str, query_params: dict):
+        """Compiles D2 source (cache-aware) and sends the SVG or an error response."""
+        sketch, theme, layout = self._parse_options(query_params)
+        cache_info_before = compile_d2_cached.cache_info()
+
+        try:
+            svg = compile_d2_cached(d2_code, sketch, theme, layout)
+        except subprocess.CalledProcessError as err:
+            self.send_error(400, f"D2 Compilation Error:\n{err.stderr.decode('utf-8', errors='replace')}")
+            return
+        except subprocess.TimeoutExpired:
+            self.send_error(504, f"Rendering exceeded {RENDER_TIMEOUT_SECONDS}s limit")
+            return
+
+        is_cached = compile_d2_cached.cache_info().hits > cache_info_before.hits
+        self._send_svg(svg, is_cached=is_cached)
+
+    @staticmethod
+    def _decode_payload(encoded_str: str) -> str:
+        """Decodes a Kroki-style payload, refusing inputs that inflate past the source limit."""
+        compressed = base64.urlsafe_b64decode(encoded_str.encode("ascii"))
+        inflater = zlib.decompressobj()
+        raw = inflater.decompress(compressed, MAX_SOURCE_BYTES)
+        if inflater.unconsumed_tail:
+            raise SourceTooLarge(f"Decoded diagram exceeds {MAX_SOURCE_BYTES} bytes")
+        return raw.decode("utf-8")
+
     def do_GET(self):
         """Handles GET requests for health probes and encoded diagram URLs."""
         parsed_url = urllib.parse.urlparse(self.path)
@@ -110,23 +151,15 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         if len(parts) == 3 and parts[0] == "d2" and parts[1] == "svg":
             encoded_str = parts[2]
             try:
-                # 1. Base64 URL-safe decode + zlib decompress
-                compressed = base64.urlsafe_b64decode(encoded_str.encode("ascii"))
-                d2_code = zlib.decompress(compressed).decode("utf-8")
+                d2_code = self._decode_payload(encoded_str)
+            except SourceTooLarge as err:
+                self.send_error(413, str(err))
+                return
             except Exception as err:
                 self.send_error(400, f"Malformed encoded payload: {str(err)}")
                 return
 
-            sketch, theme, layout = self._parse_options(query_params)
-            cache_info_before = compile_d2_cached.cache_info()
-
-            try:
-                svg = compile_d2_cached(d2_code, sketch, theme, layout)
-                cache_info_after = compile_d2_cached.cache_info()
-                is_cached = cache_info_after.hits > cache_info_before.hits
-                self._send_svg(svg, is_cached=is_cached)
-            except subprocess.CalledProcessError as err:
-                self.send_error(400, f"D2 Compilation Error:\n{err.stderr.decode('utf-8', errors='replace')}")
+            self._render_and_send(d2_code, query_params)
             return
 
         self.send_error(404, "Not Found. Use /d2/svg/<encoded_string> or POST to /d2/svg")
@@ -140,24 +173,23 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         if path == "d2/svg":
             try:
                 content_length = int(self.headers.get("Content-Length", 0))
-                if content_length <= 0:
-                    self.send_error(400, "Empty request body")
-                    return
+            except ValueError:
+                self.send_error(400, "Invalid Content-Length")
+                return
+            if content_length <= 0:
+                self.send_error(400, "Empty request body")
+                return
+            # Checked before reading so an oversized body never enters memory.
+            if content_length > MAX_SOURCE_BYTES:
+                self.send_error(413, f"Request body exceeds {MAX_SOURCE_BYTES} bytes")
+                return
+            try:
                 d2_code = self.rfile.read(content_length).decode("utf-8")
             except Exception as err:
                 self.send_error(400, f"Failed to read request body: {str(err)}")
                 return
 
-            sketch, theme, layout = self._parse_options(query_params)
-            cache_info_before = compile_d2_cached.cache_info()
-
-            try:
-                svg = compile_d2_cached(d2_code, sketch, theme, layout)
-                cache_info_after = compile_d2_cached.cache_info()
-                is_cached = cache_info_after.hits > cache_info_before.hits
-                self._send_svg(svg, is_cached=is_cached)
-            except subprocess.CalledProcessError as err:
-                self.send_error(400, f"D2 Compilation Error:\n{err.stderr.decode('utf-8', errors='replace')}")
+            self._render_and_send(d2_code, query_params)
             return
 
         self.send_error(404, "Not Found. POST to /d2/svg")

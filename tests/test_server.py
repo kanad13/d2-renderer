@@ -6,6 +6,7 @@ and saves generated SVGs to tests/output/ for visual verification.
 """
 
 import base64
+import http.client
 import os
 import sys
 import unittest
@@ -189,6 +190,24 @@ class TestD2Server(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             self._http_get("/non_existent_endpoint")
         self.assertEqual(ctx.exception.code, 404)
+
+    def test_12_oversized_post_returns_413(self):
+        """Verifies a declared body above the limit is refused before any body is read."""
+        parsed = urllib.parse.urlparse(TARGET_URL)
+        conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=10)
+        conn.putrequest("POST", "/d2/svg")
+        conn.putheader("Content-Length", str(50 * 1024 * 1024))
+        conn.endheaders()
+        res = conn.getresponse()
+        self.assertEqual(res.status, 413)
+        conn.close()
+
+    def test_13_decompression_bomb_returns_413(self):
+        """Verifies a tiny payload that inflates past the limit is refused."""
+        bomb = encode_d2("a" * (5 * 1024 * 1024))
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self._http_get(f"/d2/svg/{bomb}")
+        self.assertEqual(ctx.exception.code, 413)
 
 
 if __name__ == "__main__":

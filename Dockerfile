@@ -1,7 +1,8 @@
 # ========================================================
 # Stage 1: Extract official D2 binary
 # ========================================================
-FROM d2lang/d2:latest AS d2-source
+# Pinned so a surprise D2 release cannot change rendering or break the build.
+FROM d2lang/d2:v0.9.0 AS d2-source
 
 # ========================================================
 # Stage 2: Runtime environment
@@ -30,6 +31,9 @@ COPY server.py .
 RUN chown -R appuser:appuser /app
 
 USER appuser
+
+# Unbuffered so startup and error lines reach Cloud Run logs immediately.
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080
 
