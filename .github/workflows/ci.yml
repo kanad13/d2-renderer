@@ -26,7 +26,7 @@ jobs:
 
       - name: Run container
         run: |
-          docker run -d --name d2-test -p 8080:8080 d2-renderer:test
+          docker run -d --name d2-test -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test
 
       - name: Wait for service health
         run: |
@@ -59,6 +59,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # QEMU lets the amd64 runner build the arm64 image, so Apple Silicon and other
+      # arm64 hosts pull a native image from the same tag.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -83,11 +88,19 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Verify both platforms are published
+        run: |
+          manifest="$(docker buildx imagetools inspect ghcr.io/${{ github.repository }}:latest)"
+          echo "$manifest"
+          echo "$manifest" | grep -q "linux/amd64"
+          echo "$manifest" | grep -q "linux/arm64"
 
   deploy:
     name: Deploy to Cloud Run
