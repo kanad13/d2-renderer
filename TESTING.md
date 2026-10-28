@@ -70,18 +70,32 @@ A check that cannot fail proves nothing. These deliberate breaks each make a nam
 
 A `200` status does not prove a diagram looks right. Generate a page that shows every sample diagram from the local container and, optionally, the deployed service:
 
-```bash
-RENDERER_REMOTE_URL=<SERVICE_URL> python3 scripts/build-render-check.py
-python3 -m http.server -d render-check <PORT>
-```
+- **When testing against Cloud Run:**
+  - Bring the deployed service online:
+    ```bash
+    gcloud run services add-iam-policy-binding d2-renderer --project=<PROJECT_ID> --region=<REGION> --member=allUsers --role=roles/run.invoker
+    ```
+  - Generate the comparison check page:
+    ```bash
+    RENDERER_REMOTE_URL=<SERVICE_URL> python3 scripts/build-render-check.py
+    python3 -m http.server -d render-check <PORT>
+    ```
+  - Take the service back offline when verification is complete:
+    ```bash
+    gcloud run services remove-iam-policy-binding d2-renderer --project=<PROJECT_ID> --region=<REGION> --member=allUsers --role=roles/run.invoker
+    ```
+
+- **Local verification only:**
+  - Omit `RENDERER_REMOTE_URL` to check only the local container column:
+    ```bash
+    python3 scripts/build-render-check.py
+    ```
 
 Open `http://localhost:<PORT>/` and confirm for every image:
 
 - **Presence:** each image appears in each column, with no broken-image icon.
 - **Legibility:** labels are readable, not clipped or overlapping.
 - **Variants:** sketch, theme and layout variants visibly differ from the plain render.
-
-Omit `RENDERER_REMOTE_URL` to check only the local column. The generated page is git-ignored.
 
 The suite also writes SVGs to `tests/output/` (git-ignored). Open them in a browser to check fonts, arrows and the hand-drawn look.
 
@@ -93,7 +107,7 @@ Run the probe against each target, then compare the tables. It is read-only and 
 python3 scripts/probe-behavior.py <BASE_URL>
 ```
 
-It reports status-line shape, error content type, tala support, Node `fetch` parsing, and how icon URLs are handled. Use it before and after a deploy.
+When probing a remote Cloud Run deployment, bring it online beforehand with `add-iam-policy-binding` and take it offline afterward with `remove-iam-policy-binding`. It reports status-line shape, error content type, tala support, Node `fetch` parsing, and how icon URLs are handled. Use it before and after a deploy.
 
 ## Multi-architecture image
 
