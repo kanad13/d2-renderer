@@ -41,7 +41,7 @@ If a change breaks rendering, fix it before ending the session.
 - **Offline compile:** keep `--bundle=false` and the empty working directory ([decision 060](./docs/decisions/060-offline-compile-in-empty-directory.md)).
 - **Error replies:** go through `_send_error_text` so the status line stays one line.
 - **Cost safety:** the Cloud Run service must keep `max-instances` at 1 and stay in a Tier 1 EU region. Never create always-on instances.
-- **Cloud Run deploys:** Cloud Run deployment runs only on manual dispatch (`workflow_dispatch`), so everyday pushes to `main` test and publish images without modifying live Cloud Run state. Toggle public access on GCP directly with `add-iam-policy-binding` and `remove-iam-policy-binding` ([decision 090](./docs/decisions/090-on-demand-cloud-run-deployment.md), [operations](./docs/050-operations.md#bring-the-service-online-and-take-it-offline)).
+- **Cloud Run deploys:** Cloud Run deployment runs only on manual dispatch (`workflow_dispatch`), so everyday pushes to `main` test and publish images without modifying live Cloud Run state. Toggle public access on GCP directly with `add-iam-policy-binding` and `remove-iam-policy-binding` ([decision 090](./docs/decisions/090-on-demand-cloud-run-deployment.md), [operations](./docs/050-operations.md#control-public-access-up-and-down)).
 - **Secrets:** none are used. Do not add credentials to the repo; deployment uses keyless GitHub-to-Google federation.
 - **Docs hygiene:** after doc changes, run the `markdown-audit` checks (numbering, README per folder, working relative links).
 - **Docs voice:** state what the service does, in the present tense. Keep factual limits as plain statements of fact.
