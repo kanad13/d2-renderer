@@ -20,7 +20,7 @@ Read in order; each is under a page.
 | [060-offline-compile-in-empty-directory.md](./060-offline-compile-in-empty-directory.md) | Compile offline in an empty directory: no outbound requests, no imports.             |
 | [070-static-svg-diagrams-in-docs.md](./070-static-svg-diagrams-in-docs.md)               | Show documentation diagrams as committed SVG files with their D2 source beside them. |
 | [080-multi-architecture-image.md](./080-multi-architecture-image.md)                     | Publish `linux/amd64` and `linux/arm64` from one tag.                                |
-| [090-deploy-pause-switch.md](./090-deploy-pause-switch.md)                               | Pause deploys with the `DEPLOY_ENABLED` repository variable.                         |
+| [090-on-demand-cloud-run-deployment.md](./090-on-demand-cloud-run-deployment.md)         | On-demand Cloud Run deployment and 1-command IAM perimeter control.                  |
 
 ## Record format
 

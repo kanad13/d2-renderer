@@ -52,7 +52,7 @@ docker rm -f d2-test
 - **`TEST_TARGET_URL`:** the server under test. Default `http://127.0.0.1:8080`.
 - **`TEST_STANDIN_HOST`:** the test machine as the server sees it. Default `host.docker.internal`. Set it when the server runs outside Docker Desktop.
 - **Without Docker:** install D2 (`brew install d2`), run `python3 server.py` in the background, then run the same test command.
-- **CI:** the `test` job in [ci.yml](./.github/workflows/ci.yml) runs this suite on every push and pull request. The `publish` and `deploy` jobs follow on `main`; `deploy` is skipped while `DEPLOY_ENABLED` is `false`.
+- **CI:** the `test` job in [ci.yml](./.github/workflows/ci.yml) runs this suite on every push and pull request. The `publish` job follows on `main`; `deploy` runs on manual dispatch (`workflow_dispatch`).
 
 ## Sabotage checks
 

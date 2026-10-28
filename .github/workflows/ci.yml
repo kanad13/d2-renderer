@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -49,7 +50,7 @@ jobs:
   publish:
     name: Publish to GitHub Container Registry
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # Only this job writes packages; the test job and pull requests stay read-only.
     permissions:
@@ -105,9 +106,9 @@ jobs:
   deploy:
     name: Deploy to Cloud Run
     needs: publish
-    # Skipped on forks and fresh clones until the GCP_* repository variables exist, and
-    # while DEPLOY_ENABLED is 'false' (the pause switch, see docs/050-operations.md).
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != '' && vars.DEPLOY_ENABLED != 'false'
+    # Skipped on forks and fresh clones until the GCP_* repository variables exist.
+    # Runs on manual workflow dispatch so everyday pushes do not touch live Cloud Run state.
+    if: github.event_name == 'workflow_dispatch' && vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -131,7 +132,7 @@ jobs:
           timeout: 30s
           flags: >-
             --port=8080
-            --allow-unauthenticated
+            --no-allow-unauthenticated
             --min-instances=0
             --max-instances=1
             --concurrency=8
