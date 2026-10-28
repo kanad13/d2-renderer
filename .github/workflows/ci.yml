@@ -103,6 +103,19 @@ jobs:
           echo "$manifest" | grep -q "linux/amd64"
           echo "$manifest" | grep -q "linux/arm64"
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pull and test published image
+        run: |
+          docker pull ghcr.io/${{ github.repository }}:${{ github.sha }}
+          docker run -d --name d2-published -p 8080:8080 --add-host=host.docker.internal:host-gateway ghcr.io/${{ github.repository }}:${{ github.sha }}
+          timeout 30s bash -c 'until curl -sf http://localhost:8080/health; do sleep 1; done'
+          python3 -m unittest discover -s tests -v
+          docker rm -f d2-published
+
   deploy:
     name: Deploy to Cloud Run
     needs: publish

@@ -115,6 +115,19 @@ When probing a remote Cloud Run deployment, bring it online beforehand with `add
 - **Published image:** `docker buildx imagetools inspect ghcr.io/<OWNER>/d2-renderer:latest` lists both platforms. The publish job fails when either is missing.
 - **Native check:** on an Apple Silicon Mac, `docker pull` the published image without `--platform`, run it, then render a diagram with `?layout=tala`.
 
+## Test published image
+
+Pull the published image from GitHub Container Registry and run the full test suite against it:
+
+```bash
+docker pull ghcr.io/kanad13/d2-renderer:latest
+docker run -d --name d2-published -p 8080:8080 --add-host=host.docker.internal:host-gateway ghcr.io/kanad13/d2-renderer:latest
+python3 -m unittest discover -s tests -v
+docker rm -f d2-published
+```
+
+CI executes this same verification in the `publish` job immediately after pushing to GHCR, ensuring the published artifact downloads cleanly and passes all 28 integration tests.
+
 ## Documentation diagrams
 
 - **Rebuild:** `python3 scripts/build-doc-diagrams.py` with the container running.

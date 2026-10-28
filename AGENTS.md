@@ -19,15 +19,16 @@ If a change breaks rendering, fix it before ending the session.
 
 ## Commands
 
-| Task                 | Command                                                                                                   |
-| :------------------- | :-------------------------------------------------------------------------------------------------------- |
-| Build image          | `docker build -t d2-renderer:test .`                                                                      |
-| Run locally          | `docker run -d --name d2-test -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test` |
-| Run tests            | `python3 -m unittest discover -s tests -v` (needs a running server)                                       |
-| Render check         | `python3 scripts/build-render-check.py`                                                                   |
-| Rebuild doc diagrams | `python3 scripts/build-doc-diagrams.py` (needs a running server)                                          |
-| Compare two targets  | `python3 scripts/probe-behavior.py <BASE_URL>`                                                            |
-| Stop local           | `docker rm -f d2-test`                                                                                    |
+| Task                 | Command                                                                                                                                                                                                   |
+| :------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build image          | `docker build -t d2-renderer:test .`                                                                                                                                                                      |
+| Run locally          | `docker run -d --name d2-test -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test`                                                                                                 |
+| Run tests            | `python3 -m unittest discover -s tests -v` (needs a running server)                                                                                                                                       |
+| Render check         | `python3 scripts/build-render-check.py`                                                                                                                                                                   |
+| Rebuild doc diagrams | `python3 scripts/build-doc-diagrams.py` (needs a running server)                                                                                                                                          |
+| Compare two targets  | `python3 scripts/probe-behavior.py <BASE_URL>`                                                                                                                                                            |
+| Test published image | `docker run -d --name d2-published -p 8080:8080 --add-host=host.docker.internal:host-gateway ghcr.io/kanad13/d2-renderer:latest && python3 -m unittest discover -s tests -v && docker rm -f d2-published` |
+| Stop local           | `docker rm -f d2-test`                                                                                                                                                                                    |
 
 ## Rules
 
