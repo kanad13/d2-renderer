@@ -10,7 +10,7 @@ Runbook for setting up and deploying an on-demand instance of the service to Goo
   - GitHub Actions runs tests and publishes container images to GHCR on every push to `main`.
   - Cloud Run deployments run on demand via manual workflow dispatch (`gh workflow run ci.yml`).
   - Deployments configure `--no-allow-unauthenticated` by default to prevent accidental public exposure.
-  - Public access is controlled on demand using the 1-command IAM toggle in [Operations](./050-operations.md#bring-the-service-online-and-take-it-offline).
+  - Public access is controlled on demand using the 1-command IAM toggle in [Operations](./050-operations.md#control-public-access-up-and-down).
 
 ## Values to gather
 

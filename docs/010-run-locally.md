@@ -60,6 +60,16 @@ docker run -d --name d2-renderer -p 9090:8080 -e MAX_SOURCE_BYTES=1048576 ghcr.i
 
 To choose a different host port, change only the left number of `-p`. Then enter `http://localhost:9090` wherever you configure the renderer URL.
 
+## Keep it on your machine
+
+Docker publishes `-p 8080:8080` on every network interface, so other machines on your network can reach the container. To accept connections from your own machine only, bind the port to the loopback address:
+
+```bash
+docker run -d --name d2-renderer -p 127.0.0.1:8080:8080 ghcr.io/kanad13/d2-renderer:latest
+```
+
+The renderer URL stays `http://localhost:8080`.
+
 ## Build the image from source
 
 Clone the repository, then build and run your build:
