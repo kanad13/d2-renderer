@@ -1,6 +1,6 @@
 # Architecture
 
-d2-renderer is an open-source, zero-dependency HTTP microservice application that runs the `d2` compiler and returns SVG. The same container image runs on your local laptop, within on-premise Docker environments, and on Google Cloud Run. Because public pages embed diagram URLs, a public instance is deliberately open to the internet and protects itself with strict resource limits rather than authentication tokens ([decision 020](./060-decisions/020-no-token-auth.md)).
+`d2-renderer` is an open-source HTTP service that compiles D2 diagram specifications into SVG images. The container runs on local developer machines, within self-hosted Docker environments, or as a serverless instance on Google Cloud Run. Because public pages embed diagram URLs directly, public instances operate without token authentication ([decision 020](./060-decisions/020-no-token-auth.md)) and enforce strict resource limits instead.
 
 ## Components
 
