@@ -7,7 +7,7 @@ Single-Line Summary:
 Architectural Purpose:
     GitHub, GitLab, and web hosts cannot reach localhost renderers. To ensure diagram
     images render in public Markdown without broken image icons, all documentation diagrams
-    are compiled offline to static SVGs committed in docs/img/ and examples/img/.
+    are compiled offline to static SVGs committed in docs/080-img/ and docs/090-examples/img/.
     This script guarantees that committed SVGs and embedded code blocks never drift
     from their canonical .d2 sources.
 
@@ -33,8 +33,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Mapping of (source_directory, output_directory). Each .d2 file compiles to <out>/<name>.svg.
 DIAGRAM_DIRS = [
-    (ROOT / "docs" / "diagrams", ROOT / "docs" / "img"),
-    (ROOT / "examples", ROOT / "examples" / "img"),
+    (ROOT / "docs" / "070-diagrams", ROOT / "docs" / "080-img"),
+    (ROOT / "docs" / "090-examples", ROOT / "docs" / "090-examples" / "img"),
 ]
 
 # TALA provides deterministic, clean architecture layouts without overlapping labels.

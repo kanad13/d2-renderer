@@ -1,0 +1,38 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+
+developer: Developer {
+  shape: person
+}
+
+github_actions: GitHub Actions CI/CD {
+  test_job: "1. Build and test"
+  publish_job: "2. Publish amd64 and arm64"
+  deploy_job: "3. Deploy by commit SHA"
+  test_job -> publish_job -> deploy_job
+}
+
+container_registry: "GitHub Packages (ghcr.io)" {
+  shape: cylinder
+}
+
+cloud_run: Google Cloud Run (EU Region) {
+  service: "d2-renderer (max 1 instance)"
+}
+
+public_clients: Public Web Pages & Markdown {
+  shape: cloud
+  style.stroke-dash: 4
+}
+
+developer -> github_actions.test_job: "git push to main"
+github_actions.publish_job -> container_registry: pushes multi-arch image
+github_actions.deploy_job -> cloud_run.service: keyless OIDC deploy
+container_registry -> cloud_run.service: pulls image
+public_clients -> cloud_run.service: "GET /d2/svg/<payload>"

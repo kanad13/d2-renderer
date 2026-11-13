@@ -69,21 +69,29 @@ Both produce the same string for the same text. The service accepts the trailing
 
 Source:
 
-<img src="../examples/img/hello.svg" alt="A browser sends a diagram URL to d2-renderer and receives an SVG" width="560">
+<img src="090-examples/img/hello.svg" alt="A browser sends a diagram URL to d2-renderer and receives an SVG" width="560">
 
-<!-- d2-source: examples/hello.d2 -->
+<!-- d2-source: docs/090-examples/hello.d2 -->
 <details>
 <summary>D2 source</summary>
 
 ```d2
 vars: {
   d2-config: {
-    layout-engine: dagre
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
   }
 }
-direction: right
-Browser -> d2-renderer: GET diagram URL
-d2-renderer -> Browser: SVG
+
+browser: Browser {
+  shape: person
+}
+renderer: d2-renderer
+
+browser -> renderer: "GET /d2/svg/<payload>"
+renderer -> browser: SVG document
 ```
 
 </details>
@@ -92,7 +100,7 @@ The encoder turns that source into this URL:
 
 ```html
 <img
-  src="http://localhost:8088/d2/svg/eNpNjDsOwkAMBXuf4l1gG0oXFEgoDRW_fhWbxRJ4JWcJQih3JxEUlE_zZsYcA-NNgKxSX_1i5TuBW37VR0vqxVwZkkvoDCaaSCy0b1adEVaujTZRn4MG0nrphLpoaDC67RFis5nvOO139AeX709jHM4dfQAnciyf"
+  src="http://localhost:8088/d2/svg/eNpFjsEKgzAQRO_5isV7UEJPoXgoFD-gpfet2apUk5BEixT_vTFSvc0Mb2d2QuclfBmAErw2-tU1mwXocTZj4KSbTpOEgD2m3KKSIE5Jh5YG4l0MiuQVujc_QlGs8cIWxp7OfDw5CZdNpBHfoo3Vlpw3OlKOtCK3UvGbv9lvgZdwEFl1vUOuRO6nJj9bnHuDqsz2jpXeR2-PCpSpx4F0YD8W7Uv8"
   alt="Browser to d2-renderer round trip"
 />
 ```
@@ -132,7 +140,7 @@ err: -:1:11: maps must be terminated with }
 - **Offline compile:**
   - D2 runs with `--bundle=false` in an empty directory, so a diagram cannot trigger a download or read a server file.
   - `icon:` and image URLs stay in the SVG as `<image href>` references.
-  - Rationale: [decision 060](./decisions/060-offline-compile-in-empty-directory.md).
+  - Rationale: [decision 060](./060-decisions/060-offline-compile-in-empty-directory.md).
 - **Caching:**
   - The service keeps the 256 most recently used renders in memory.
   - The one-year `Cache-Control` header lets browsers keep a diagram without asking again.
@@ -142,4 +150,4 @@ err: -:1:11: maps must be terminated with }
 ## Navigation
 
 - [Documentation index](./README.md)
-- Previous: [Setup Guide](./setup/README.md) · Next: [Architecture](./030-architecture.md)
+- Previous: [Setup Guide](./010-setup/README.md) · Next: [Architecture](./030-architecture.md)

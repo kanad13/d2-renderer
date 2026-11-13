@@ -201,7 +201,7 @@ class TestD2Server(unittest.TestCase):
 
     def test_06_render_example_architecture(self):
         """Verifies rendering of the full architecture.d2 example file."""
-        example_path = os.path.join(os.path.dirname(__file__), "..", "examples", "architecture.d2")
+        example_path = os.path.join(os.path.dirname(__file__), "..", "docs", "090-examples", "architecture.d2")
         with open(example_path, "r", encoding="utf-8") as f:
             d2_code = f.read()
         res = self._http_post("/d2/svg", d2_code)
@@ -214,7 +214,7 @@ class TestD2Server(unittest.TestCase):
 
     def test_07_render_example_sequence(self):
         """Verifies rendering of the full sequence.d2 example file."""
-        example_path = os.path.join(os.path.dirname(__file__), "..", "examples", "sequence.d2")
+        example_path = os.path.join(os.path.dirname(__file__), "..", "docs", "090-examples", "sequence.d2")
         with open(example_path, "r", encoding="utf-8") as f:
             d2_code = f.read()
         res = self._http_post("/d2/svg", d2_code)
@@ -458,7 +458,7 @@ class TestDocumentedPayloads(unittest.TestCase):
         """
         found = []
         paths = [os.path.join(self.ROOT, "README.md")]
-        for folder in ("docs", "examples"):
+        for folder in ("docs",):
             for dirpath, _, names in os.walk(os.path.join(self.ROOT, folder)):
                 paths += [os.path.join(dirpath, n) for n in names if n.endswith(".md")]
         for path in paths:
@@ -483,8 +483,8 @@ class TestDocumentedPayloads(unittest.TestCase):
                 self.assertIn("</svg>", res.read().decode("utf-8"))
 
     def test_27_api_example_encodes_the_visible_source(self):
-        """Verifies that the GET URL payload in the API reference encodes examples/hello.d2."""
-        with open(os.path.join(self.ROOT, "examples", "hello.d2"), encoding="utf-8") as f:
+        """Verifies that the GET URL payload in the API reference encodes docs/090-examples/hello.d2."""
+        with open(os.path.join(self.ROOT, "docs", "090-examples", "hello.d2"), encoding="utf-8") as f:
             hello = f.read().strip()
         decoded = [zlib.decompress(base64.urlsafe_b64decode(p)).decode("utf-8").strip()
                    for path, p in self.documented_payloads() if path.endswith("020-api-reference.md")]

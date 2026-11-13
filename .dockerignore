@@ -3,7 +3,7 @@
 .gitignore
 .dockerignore
 tests/
-examples/
+docs/
 *.md
 .DS_Store
 __pycache__

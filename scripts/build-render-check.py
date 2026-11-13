@@ -74,14 +74,14 @@ def encode(source: str) -> str:
 
 
 def collect_cases() -> List[Tuple[str, str, str]]:
-    """Gathers all inline test cases and sample diagram files from examples/.
+    """Gathers all inline test cases and sample diagram files from docs/090-examples/.
 
     Returns:
         List of (case_title, d2_source_text, query_string) tuples.
     """
     cases = list(INLINE_CASES)
-    for path in sorted((ROOT / "examples").glob("*.d2")):
-        cases.append((f"examples/{path.name}", path.read_text(encoding="utf-8"), ""))
+    for path in sorted((ROOT / "docs" / "090-examples").glob("*.d2")):
+        cases.append((f"090-examples/{path.name}", path.read_text(encoding="utf-8"), ""))
     return cases
 
 

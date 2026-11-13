@@ -1,0 +1,16 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+
+browser: Browser {
+  shape: person
+}
+renderer: d2-renderer
+
+browser -> renderer: "GET /d2/svg/<payload>"
+renderer -> browser: SVG document

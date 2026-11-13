@@ -1,6 +1,6 @@
 # Architecture
 
-d2-renderer is one small container: an HTTP service that runs the `d2` compiler and returns SVG. The same image runs on your laptop and on Google Cloud Run. Because public pages embed diagram URLs, a public instance is open to the internet and protects itself with limits instead of passwords ([decision 020](./decisions/020-no-token-auth.md)).
+d2-renderer is an open-source, zero-dependency HTTP microservice application that runs the `d2` compiler and returns SVG. The same container image runs on your local laptop, within on-premise Docker environments, and on Google Cloud Run. Because public pages embed diagram URLs, a public instance is deliberately open to the internet and protects itself with strict resource limits rather than authentication tokens ([decision 020](./060-decisions/020-no-token-auth.md)).
 
 ## Components
 
@@ -9,44 +9,62 @@ d2-renderer is one small container: an HTTP service that runs the `d2` compiler 
 | HTTP service      | Decodes the request, enforces limits, calls D2, caches results. Standard library only.         | [server.py](../server.py)             |
 | Container         | Python 3.12, a pinned D2 binary (v0.9.0) and fonts, built for `linux/amd64` and `linux/arm64`. | [Dockerfile](../Dockerfile)           |
 | CI/CD             | Test, publish a multi-architecture image to GitHub Container Registry, deploy to Cloud Run.    | [ci.yml](../.github/workflows/ci.yml) |
-| Cloud Run service | Runs the container in an EU region and scales to zero.                                         | [Deploy runbook](./setup/030-cloud-run.md) |
+| Cloud Run service | Runs the container in an EU region and scales to zero.                                         | [Deploy runbook](./010-setup/030-cloud-run.md) |
 
 ## Request flow
 
 A request carries D2 text. The service rejects oversized input first, then answers from the cache or compiles the text.
 
-<img src="img/request-flow.svg" alt="Request flow: size check, cache lookup, offline compile, SVG reply or error reply" width="520">
+<img src="080-img/request-flow.svg" alt="Request flow: size check, cache lookup, offline compile, SVG reply or error reply" width="520">
 
-<!-- d2-source: docs/diagrams/request-flow.d2 -->
+<!-- d2-source: docs/070-diagrams/request-flow.d2 -->
 <details>
 <summary>D2 source</summary>
 
 ```d2
-direction: down
-
-req: Request {
-  get: "GET /d2/svg/<payload>"
-  post: "POST /d2/svg (raw text)"
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
 }
 
-limits: Size check {
-  label: "Body or decoded text\nover MAX_SOURCE_BYTES?"
-}
-cache: LRU cache
-compile: "d2 --bundle=false\nin an empty directory"
-reply: SVG response
-errors: "Error reply\n400 / 413 / 500 / 504\none-line status, text body" {
-  style.stroke: "#C5221F"
+client_request: Incoming HTTP Request {
+  shape: cloud
+  style.stroke-dash: 4
 }
 
-req.get -> limits
-req.post -> limits
-limits -> errors: yes (413)
-limits -> cache: no
-cache -> reply: hit
-cache -> compile: miss
-compile -> reply: stored in cache
-compile -> errors: syntax error (400)\nmissing binary (500)\ntimeout (504)
+size_guard: "Payload <= MAX_SOURCE_BYTES?" {
+  shape: diamond
+}
+
+memory_cache: In-Memory LRU Cache {
+  shape: cylinder
+}
+
+compiler_engine: "D2 Offline Compiler"
+svg_response: SVG Response {
+  shape: document
+}
+
+error_response: "RFC Status Error (400 / 413 / 500 / 504)" {
+  shape: document
+  style.stroke-dash: 4
+}
+
+client_request -> size_guard: receives GET or POST
+size_guard -> error_response: "exceeds limit (413)" {
+  style.stroke-dash: 4
+}
+size_guard -> memory_cache: within bounds
+memory_cache -> svg_response: cache hit (~1.2 ms)
+memory_cache -> compiler_engine: cache miss
+compiler_engine -> svg_response: stores result and returns
+compiler_engine -> error_response: syntax or timeout error {
+  style.stroke-dash: 4
+}
 ```
 
 </details>
@@ -66,33 +84,47 @@ compile -> errors: syntax error (400)\nmissing binary (500)\ntimeout (504)
 
 D2 normally downloads every icon and image URL a diagram names, and it resolves imports against the working directory. On an open service that would let a diagram make the container request any address, or read files beside the server. A measured probe against an earlier deployment reached the Cloud Run metadata server this way.
 
-<img src="img/offline-compile.svg" alt="Each compile runs in a fresh empty directory with --bundle=false, makes no network requests, and keeps icon URLs as references" width="420">
+<img src="080-img/offline-compile.svg" alt="Each compile runs in a fresh empty directory with --bundle=false, makes no network requests, and keeps icon URLs as references" width="420">
 
-<!-- d2-source: docs/diagrams/offline-compile.d2 -->
+<!-- d2-source: docs/070-diagrams/offline-compile.d2 -->
 <details>
 <summary>D2 source</summary>
 
 ```d2
-direction: down
-
-diagram: "Diagram text with\nicon: https://..."
-compile: "One compile" {
-  direction: down
-  tmp: "Fresh empty directory\n(imports find nothing)"
-  flag: "d2 --bundle=false\n(nothing is downloaded)"
-  tmp -> flag
-}
-svg: "SVG keeps the icon URL\nas an image reference"
-net: "Network requests" {
-  style.stroke: "#C5221F"
-  style.stroke-dash: 3
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
 }
 
-diagram -> compile
-compile -> svg
-compile -> net: none {
-  style.stroke: "#C5221F"
-  style.stroke-dash: 3
+source_text: "Diagram text (with icon URL)" {
+  shape: document
+}
+
+compile_sandbox: Isolated Compilation Sandbox {
+  empty_dir: "Fresh empty directory" {
+    shape: cylinder
+  }
+  offline_flag: "d2 --bundle=false"
+  empty_dir -> offline_flag: isolates imports
+}
+
+rendered_svg: "SVG (preserves image URL reference)" {
+  shape: document
+}
+
+external_network: External Network {
+  shape: cloud
+  style.stroke-dash: 4
+}
+
+source_text -> compile_sandbox: input text
+compile_sandbox -> rendered_svg: compiles SVG
+compile_sandbox -> external_network: blocked (zero outbound calls) {
+  style.stroke-dash: 4
 }
 ```
 
@@ -101,46 +133,57 @@ compile -> net: none {
 - **Flag:** `d2 --bundle=false` makes the compiler offline. Icon URLs stay in the SVG as `<image href>` references.
 - **Directory:** each compile runs in a fresh empty temporary directory, so imports find nothing.
 - **Result:** a diagram cannot trigger an outbound request, on any host that runs the image.
-- **Record:** [decision 060](./decisions/060-offline-compile-in-empty-directory.md).
+- **Record:** [decision 060](./060-decisions/060-offline-compile-in-empty-directory.md).
 
 ## Build and deployment
 
-Pushing to `main` tests the build and publishes both architectures to GHCR. Cloud Run deployment runs on manual dispatch ([decision 090](./decisions/090-on-demand-cloud-run-deployment.md)), selecting the `linux/amd64` entry of the image.
+Pushing to `main` tests the build and publishes both architectures to GHCR. Cloud Run deployment runs on manual dispatch ([decision 090](./060-decisions/090-on-demand-cloud-run-deployment.md)), selecting the `linux/amd64` entry of the image.
 
-<img src="img/deployment.svg" alt="A push to main flows through GitHub Actions to the GHCR image and a Cloud Run service that public pages call" width="420">
+<img src="080-img/deployment.svg" alt="A push to main flows through GitHub Actions to the GHCR image and a Cloud Run service that public pages call" width="420">
 
-<!-- d2-source: docs/diagrams/deployment.d2 -->
+<!-- d2-source: docs/070-diagrams/deployment.d2 -->
 <details>
 <summary>D2 source</summary>
 
 ```d2
-direction: down
-
-dev: "git push to main"
-
-gha: GitHub Actions {
-  direction: down
-  test: "1. Build and test"
-  publish: "2. Publish amd64 + arm64 image"
-  deploy: "3. Deploy by commit SHA"
-  test -> publish -> deploy
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
 }
 
-ghcr: ghcr.io image {
+developer: Developer {
+  shape: person
+}
+
+github_actions: GitHub Actions CI/CD {
+  test_job: "1. Build and test"
+  publish_job: "2. Publish amd64 and arm64"
+  deploy_job: "3. Deploy by commit SHA"
+  test_job -> publish_job -> deploy_job
+}
+
+container_registry: "GitHub Packages (ghcr.io)" {
   shape: cylinder
 }
 
-run: Cloud Run (EU region) {
-  svc: "d2-renderer\nmax 1 instance"
+cloud_run: Google Cloud Run (EU Region) {
+  service: "d2-renderer (max 1 instance)"
 }
 
-pages: Public pages with img tags
+public_clients: Public Web Pages & Markdown {
+  shape: cloud
+  style.stroke-dash: 4
+}
 
-dev -> gha.test
-gha.publish -> ghcr: push
-gha.deploy -> run.svc: keyless deploy
-ghcr -> run.svc: pulled
-pages -> run.svc: GET diagram
+developer -> github_actions.test_job: "git push to main"
+github_actions.publish_job -> container_registry: pushes multi-arch image
+github_actions.deploy_job -> cloud_run.service: keyless OIDC deploy
+container_registry -> cloud_run.service: pulls image
+public_clients -> cloud_run.service: "GET /d2/svg/<payload>"
 ```
 
 </details>
@@ -157,11 +200,11 @@ pages -> run.svc: GET diagram
 | Cloud Run concurrency    | 8           | Many parallel D2 processes on one CPU.                |
 | Cloud Run max instances  | 1           | Cost growth under a traffic flood.                    |
 
-Cloud Run settings come from the deploy job in [ci.yml](../.github/workflows/ci.yml). The reasoning is in [decision 050](./decisions/050-traffic-limits-and-cost-guardrails.md).
+Cloud Run settings come from the deploy job in [ci.yml](../.github/workflows/ci.yml). The reasoning is in [decision 050](./060-decisions/050-traffic-limits-and-cost-guardrails.md).
 
 ## Where the diagrams in these docs come from
 
-Each picture is an SVG that this project's own container drew from the D2 source shown beside it. `scripts/build-doc-diagrams.py` rebuilds them, and its `--check` mode runs in CI. See [decision 070](./decisions/070-static-svg-diagrams-in-docs.md).
+Each picture is an SVG that this project's own container drew from the D2 source shown beside it. `scripts/build-doc-diagrams.py` rebuilds them, and its `--check` mode runs in CI. See [decision 070](./060-decisions/070-static-svg-diagrams-in-docs.md).
 
 ## Navigation
 

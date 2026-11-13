@@ -1,0 +1,28 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+
+editor: VS Code {
+  md: "Markdown file with d2 fence" {
+    shape: document
+  }
+  ext: Lightweight Markdown Preview
+  md -> ext: reads
+}
+
+host_machine: Your Machine {
+  container: d2-renderer Container {
+    server: HTTP Service
+    compiler: "D2 CLI Compiler (offline)"
+    server -> compiler: source text
+    compiler -> server: SVG
+  }
+}
+
+editor.ext -> host_machine.container.server: "GET /d2/svg/<payload>"
+host_machine.container.server -> editor.ext: SVG response

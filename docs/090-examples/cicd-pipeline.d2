@@ -1,0 +1,52 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+
+dev: Developer {
+  shape: person
+}
+
+repo: Git repository {
+  shape: cylinder
+}
+
+ci: CI pipeline {
+  lint: Lint and type check
+  unit: Unit tests
+  build: Build container image
+  scan: Vulnerability scan
+  lint -> unit -> build -> scan
+}
+
+registry: Container registry {
+  shape: cylinder
+}
+
+envs: Environments {
+  staging: Staging
+  approval: Manual approval {
+    shape: diamond
+  }
+  prod: Production
+  staging -> approval: smoke tests pass
+  approval -> prod: approved
+}
+
+alerts: Monitoring and alerts
+
+dev -> repo: git push
+repo -> ci.lint: webhook
+ci.scan -> registry: push image
+registry -> envs.staging: deploy
+envs.prod -> alerts: metrics
+alerts -> dev: page on failure {
+  style.stroke-dash: 4
+}
+envs.prod -> registry: rollback to previous tag {
+  style.stroke-dash: 4
+}

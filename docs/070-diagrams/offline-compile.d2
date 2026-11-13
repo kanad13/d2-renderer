@@ -1,0 +1,35 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+
+source_text: "Diagram text (with icon URL)" {
+  shape: document
+}
+
+compile_sandbox: Isolated Compilation Sandbox {
+  empty_dir: "Fresh empty directory" {
+    shape: cylinder
+  }
+  offline_flag: "d2 --bundle=false"
+  empty_dir -> offline_flag: isolates imports
+}
+
+rendered_svg: "SVG (preserves image URL reference)" {
+  shape: document
+}
+
+external_network: External Network {
+  shape: cloud
+  style.stroke-dash: 4
+}
+
+source_text -> compile_sandbox: input text
+compile_sandbox -> rendered_svg: compiles SVG
+compile_sandbox -> external_network: blocked (zero outbound calls) {
+  style.stroke-dash: 4
+}

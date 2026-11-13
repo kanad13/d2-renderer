@@ -1,0 +1,43 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+
+client_request: Incoming HTTP Request {
+  shape: cloud
+  style.stroke-dash: 4
+}
+
+size_guard: "Payload <= MAX_SOURCE_BYTES?" {
+  shape: diamond
+}
+
+memory_cache: In-Memory LRU Cache {
+  shape: cylinder
+}
+
+compiler_engine: "D2 Offline Compiler"
+svg_response: SVG Response {
+  shape: document
+}
+
+error_response: "RFC Status Error (400 / 413 / 500 / 504)" {
+  shape: document
+  style.stroke-dash: 4
+}
+
+client_request -> size_guard: receives GET or POST
+size_guard -> error_response: "exceeds limit (413)" {
+  style.stroke-dash: 4
+}
+size_guard -> memory_cache: within bounds
+memory_cache -> svg_response: cache hit (~1.2 ms)
+memory_cache -> compiler_engine: cache miss
+compiler_engine -> svg_response: stores result and returns
+compiler_engine -> error_response: syntax or timeout error {
+  style.stroke-dash: 4
+}

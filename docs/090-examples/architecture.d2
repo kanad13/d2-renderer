@@ -1,0 +1,40 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+    pad: 24
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+
+title: Microservice Architecture
+
+users: "Web & Mobile Users" {
+  shape: person
+}
+
+gateway: API Gateway
+
+services: Internal Services {
+  auth: Authentication Service
+  billing: Billing Service
+  renderer: D2 Rendering Service
+}
+
+storage: Data Layer {
+  db: PostgreSQL {
+    shape: cylinder
+  }
+  cache: Redis {
+    shape: cylinder
+  }
+}
+
+users -> gateway: "HTTPS requests"
+gateway -> services.auth: "validate token"
+gateway -> services.renderer: "render diagram (SVG)"
+gateway -> services.billing: "process invoices"
+
+services.auth -> storage.db: "query credentials"
+services.renderer -> storage.cache: "check render cache"
+services.billing -> storage.db: "write transaction"
