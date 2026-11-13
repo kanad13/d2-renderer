@@ -8,14 +8,14 @@ This document contains **unrendered D2 diagram specifications**. Use this file t
 1. Install [Lightweight Markdown Preview](https://marketplace.visualstudio.com/items?itemName=KunalPathak.lightweight-markdown-preview).
 2. Start `d2-renderer` locally (via Docker or native Python) or in the cloud.
 3. Open VS Code Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run **Markdown: Choose D2 Renderer**.
-4. Point it to your renderer URL (e.g. `http://localhost:8080`).
+4. Point it to your renderer URL (e.g. `http://localhost:8088`).
 5. Open the Markdown Preview (`Cmd+Shift+V` / `Ctrl+Shift+V`). Every code fence below should render as an interactive SVG diagram.
 
 ### Method 2: Via Terminal (`curl`)
 Copy any snippet below and stream it to your running renderer:
 
 ```bash
-printf 'client -> server: request\nserver -> client: response' | curl -X POST --data-binary @- http://localhost:8080/d2/svg -o test.svg
+printf 'client -> server: request\nserver -> client: response' | curl -X POST --data-binary @- http://localhost:8088/d2/svg -o test.svg
 ```
 
 ---
@@ -126,4 +126,4 @@ Experiment -> Backlog: Needs iteration
 ## Result Verification
 
 - If all diagrams render as clean SVGs, your renderer and client setup are fully operational.
-- If diagrams show as raw code fences, verify that your renderer URL is configured and `curl http://localhost:8080/health` returns `OK`.
+- If diagrams show as raw code fences, verify that your renderer URL is configured and `curl http://localhost:8088/health` returns `OK`.

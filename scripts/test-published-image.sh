@@ -5,7 +5,7 @@ set -euo pipefail
 
 IMAGE="${1:-${IMAGE:-ghcr.io/kanad13/d2-renderer:latest}}"
 CONTAINER_NAME="d2-published-check"
-PORT="${PORT:-8080}"
+PORT="${PORT:-8088}"
 
 echo "==> Pulling published image: ${IMAGE}"
 docker pull "${IMAGE}"
@@ -17,7 +17,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "==> Starting container: ${CONTAINER_NAME} on port ${PORT}"
-docker run -d --name "${CONTAINER_NAME}" -p "${PORT}:8080" --add-host=host.docker.internal:host-gateway "${IMAGE}"
+docker run -d --name "${CONTAINER_NAME}" -p "${PORT}:8088" --add-host=host.docker.internal:host-gateway "${IMAGE}"
 
 echo "==> Waiting for server health check"
 for i in {1..20}; do

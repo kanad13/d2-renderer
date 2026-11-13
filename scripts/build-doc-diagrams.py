@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
-"""Renders the D2 diagrams used in the documentation to committed SVG files.
+"""Renders the D2 diagrams used in documentation to static committed SVG files.
 
-GitHub cannot reach a localhost renderer, so every diagram in the docs is a static SVG in
-the repository, drawn by this project's own container (it uses the TALA layout engine that
-the service bundles). The D2 source sits next to each image inside a collapsible block, so
-a reader can copy the code behind the picture.
+Single-Line Summary:
+    Synchronizes D2 diagram specifications with committed SVGs and embedded doc blocks.
 
-Two modes keep pictures, sources and prose from drifting apart:
+Architectural Purpose:
+    GitHub, GitLab, and web hosts cannot reach localhost renderers. To ensure diagram
+    images render in public Markdown without broken image icons, all documentation diagrams
+    are compiled offline to static SVGs committed in docs/img/ and examples/img/.
+    This script guarantees that committed SVGs and embedded code blocks never drift
+    from their canonical .d2 sources.
 
-    python3 scripts/build-doc-diagrams.py            # rewrite the SVG files and embedded sources
-    python3 scripts/build-doc-diagrams.py --check    # fail if anything is stale
-
-Check mode fails when a committed SVG differs from a fresh render, or when a
-`<!-- d2-source: PATH -->` block in a Markdown file differs from the `.d2` file it names.
-Output is deterministic for a pinned D2 version, so a clean check means a clean diff.
-
-Usage:
-    python3 scripts/build-doc-diagrams.py [--check] [--renderer URL]
-    python3 scripts/build-doc-diagrams.py --embed docs/diagrams/request-flow.d2 --into docs/030-architecture.md --alt "..." --width 560
-
-The renderer defaults to $DOC_RENDERER_URL, then http://localhost:8080.
+Approach & Invariants:
+    1. Deterministic Rendering: Generates SVGs using the service's bundled TALA layout
+       engine, ensuring reproducible output matching the pinned D2 release.
+    2. Automated Drift Verification: `--check` mode compares committed SVGs and embedded
+       code fences against fresh renders, failing CI if documentation drifts.
+    3. Single Source of Truth: Canonical specifications live in .d2 files; Markdown
+       `<!-- d2-source: PATH -->` blocks are programmatically synchronized.
 """
 
 import argparse
@@ -27,19 +25,20 @@ import os
 import pathlib
 import re
 import sys
+from typing import Iterator, Tuple
 import urllib.error
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# (source directory, output directory). Each .d2 file becomes <out>/<name>.svg.
+# Mapping of (source_directory, output_directory). Each .d2 file compiles to <out>/<name>.svg.
 DIAGRAM_DIRS = [
     (ROOT / "docs" / "diagrams", ROOT / "docs" / "img"),
     (ROOT / "examples", ROOT / "examples" / "img"),
 ]
 
-# TALA keeps labels readable at README width; dagre and ELK lay wide diagrams out sideways.
-# A diagram that needs left-to-right order sets `vars: {d2-config: {layout-engine: dagre}}`.
+# TALA provides deterministic, clean architecture layouts without overlapping labels.
+# Diagrams requiring left-to-right flow override this via in-diagram vars: {d2-config: ...}.
 LAYOUT = "tala"
 
 EMBED_PATTERN = re.compile(
@@ -48,14 +47,18 @@ EMBED_PATTERN = re.compile(
 
 
 def render(renderer: str, source: str) -> bytes:
-    """Returns the SVG the renderer draws for D2 source text.
+    """Invokes the HTTP renderer to compile D2 source text to SVG bytes.
+
+    Args:
+        renderer: Base URL of the rendering microservice (e.g. 'http://localhost:8088').
+        source: Raw D2 declarative diagram script.
+
+    Returns:
+        Rendered SVG document as raw bytes.
 
     Raises:
-        RuntimeError: If the renderer is unreachable or rejects the diagram, with the
-            reply body so the D2 error is visible.
+        RuntimeError: If the renderer is unreachable or compilation fails.
     """
-    # A source that names its own engine (d2-config layout-engine) keeps it; the query
-    # parameter would override that choice.
     query = "" if "layout-engine" in source else f"?layout={LAYOUT}"
     request = urllib.request.Request(
         f"{renderer}/d2/svg{query}",
@@ -71,15 +74,23 @@ def render(renderer: str, source: str) -> bytes:
         raise RuntimeError(f"renderer unreachable at {renderer}: {err}") from err
 
 
-def diagram_files():
-    """Yields (d2 path, svg path) for every diagram source in the repository."""
+def diagram_files() -> Iterator[Tuple[pathlib.Path, pathlib.Path]]:
+    """Discovers all canonical D2 diagram files and their expected SVG output targets.
+
+    Yields:
+        Tuples of (d2_source_path, target_svg_path).
+    """
     for source_dir, out_dir in DIAGRAM_DIRS:
         for d2_path in sorted(source_dir.glob("*.d2")):
             yield d2_path, out_dir / f"{d2_path.stem}.svg"
 
 
-def embedded_sources():
-    """Yields (markdown path, d2 path named by the marker, embedded code) for each block."""
+def embedded_sources() -> Iterator[Tuple[pathlib.Path, pathlib.Path, str]]:
+    """Extracts all embedded D2 code blocks across repository Markdown documents.
+
+    Yields:
+        Tuples of (markdown_file_path, referenced_d2_file_path, embedded_code_content).
+    """
     for md_path in sorted(ROOT.rglob("*.md")):
         if any(part in {"node_modules", ".git", "render-check"} for part in md_path.parts):
             continue
@@ -88,10 +99,16 @@ def embedded_sources():
 
 
 def embed_markdown(d2_rel: str, alt: str, width: int, into: str) -> str:
-    """Builds the image plus collapsible-source block that documents paste in.
+    """Constructs a responsive image tag paired with a collapsible D2 source block.
 
-    A fixed width is set because D2's SVG declares only a viewBox, and browsers size such
-    an image inconsistently without one.
+    Args:
+        d2_rel: Relative path from repository root to the .d2 source file.
+        alt: Informative accessibility alt text describing the diagram.
+        width: Display width in pixels for consistent browser rendering.
+        into: Path of the target Markdown file receiving the embedded block.
+
+    Returns:
+        HTML and Markdown block ready for insertion.
     """
     d2_path = ROOT / d2_rel
     svg_rel = os.path.relpath(dict(diagram_files())[d2_path], start=(ROOT / into).parent)
@@ -104,11 +121,11 @@ def embed_markdown(d2_rel: str, alt: str, width: int, into: str) -> str:
 
 
 def sync_embedded_sources() -> None:
-    """Rewrites every embedded D2 block so it matches the .d2 file its marker names."""
+    """Updates embedded D2 blocks in all Markdown files to match their source .d2 files."""
     for md_path in sorted({path for path, _, _ in embedded_sources()}):
         text = md_path.read_text(encoding="utf-8")
 
-        def replace(match):
+        def replace(match: re.Match) -> str:
             code = (ROOT / match["path"]).read_text(encoding="utf-8").rstrip("\n")
             return match.group(0).replace(match["code"], code, 1)
 
@@ -119,7 +136,14 @@ def sync_embedded_sources() -> None:
 
 
 def write_all(renderer: str) -> int:
-    """Renders every diagram to its SVG, then syncs embedded sources. Returns 0."""
+    """Renders all repository diagrams to SVGs and synchronizes embedded Markdown blocks.
+
+    Args:
+        renderer: Base URL of the rendering microservice.
+
+    Returns:
+        Exit code 0 on success.
+    """
     for d2_path, svg_path in diagram_files():
         svg_path.parent.mkdir(parents=True, exist_ok=True)
         svg_path.write_bytes(render(renderer, d2_path.read_text(encoding="utf-8")))
@@ -129,7 +153,14 @@ def write_all(renderer: str) -> int:
 
 
 def check_all(renderer: str) -> int:
-    """Returns the number of stale images and mismatched embedded sources."""
+    """Verifies that committed SVGs and embedded blocks match fresh renders.
+
+    Args:
+        renderer: Base URL of the rendering microservice.
+
+    Returns:
+        Count of detected discrepancies (0 if fully current).
+    """
     problems = []
     for d2_path, svg_path in diagram_files():
         fresh = render(renderer, d2_path.read_text(encoding="utf-8"))
@@ -150,10 +181,10 @@ def check_all(renderer: str) -> int:
 
 
 def main() -> int:
-    """Parses arguments and runs the chosen mode. Returns the process exit code."""
+    """CLI handler supporting compile, verification, and block generation modes."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="fail if any SVG or embedded source is stale")
-    parser.add_argument("--renderer", default=os.environ.get("DOC_RENDERER_URL", "http://localhost:8080"))
+    parser.add_argument("--renderer", default=os.environ.get("DOC_RENDERER_URL", "http://localhost:8088"))
     parser.add_argument("--embed", metavar="D2_PATH", help="print the Markdown block for one diagram")
     parser.add_argument("--into", default="README.md", help="Markdown file the block will live in")
     parser.add_argument("--alt", default="")

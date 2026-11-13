@@ -35,7 +35,7 @@ limits: Size check {
 cache: LRU cache
 compile: "d2 --bundle=false\nin an empty directory"
 reply: SVG response
-errors: "Error reply\n400 / 413 / 504\none-line status, text body" {
+errors: "Error reply\n400 / 413 / 500 / 504\none-line status, text body" {
   style.stroke: "#C5221F"
 }
 
@@ -46,7 +46,7 @@ limits -> cache: no
 cache -> reply: hit
 cache -> compile: miss
 compile -> reply: stored in cache
-compile -> errors: syntax error (400)\ntimeout (504)
+compile -> errors: syntax error (400)\nmissing binary (500)\ntimeout (504)
 ```
 
 </details>
@@ -57,7 +57,7 @@ compile -> errors: syntax error (400)\ntimeout (504)
   - Bodies and decompressed payloads above `MAX_SOURCE_BYTES` get `413` before any work starts.
 - **Step 3, the cache:**
   - A hit returns at once.
-  - A miss runs `d2` with a time limit. A syntax error gives `400`, and exceeding `RENDER_TIMEOUT_SECONDS` gives `504`.
+  - A miss runs `d2` with a time limit. A syntax error gives `400`, a missing compiler binary gives `500`, and exceeding `RENDER_TIMEOUT_SECONDS` gives `504`.
 - **Step 4, the reply:**
   - The SVG carries a one-year cache header, so browsers rarely ask twice.
   - Every error reply has a one-line status and a plain-text body ([API reference](./020-api-reference.md#errors)).
@@ -147,11 +147,13 @@ pages -> run.svc: GET diagram
 
 ## Limits and why they exist
 
-| Setting                  | Default     | Protects against                                      |
+| Setting                  | Default     | Protects against / Configures                         |
 | :----------------------- | :---------- | :---------------------------------------------------- |
+| `PORT`                   | 8088        | TCP listening port (overridden by Cloud Run or CLI).  |
+| `HOST` / `--bind`        | `0.0.0.0`   | Network interface binding (set to `127.0.0.1` locally). |
 | `MAX_SOURCE_BYTES`       | 256 KiB     | Memory exhaustion by huge or highly compressed input. |
 | `RENDER_TIMEOUT_SECONDS` | 20          | A stuck compile holding an instance forever.          |
-| Cache size               | 256 entries | Cache growth filling a 512 MiB instance.              |
+| Cache size (in-memory)   | 256 entries | Cache growth filling a 512 MiB instance.              |
 | Cloud Run concurrency    | 8           | Many parallel D2 processes on one CPU.                |
 | Cloud Run max instances  | 1           | Cost growth under a traffic flood.                    |
 

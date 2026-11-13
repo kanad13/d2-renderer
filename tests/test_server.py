@@ -1,11 +1,24 @@
 #!/usr/bin/env python3
 """Automated integration test suite for D2 Diagram Rendering Microservice.
 
-Tests endpoints, query options (sketch, theme), error format, offline compiles, caching,
-input limits, and the payloads and diagrams shown in the docs against a live server, and
-saves generated SVGs to tests/output/ for visual verification. The render-timeout and
-offline-directory tests start their own server with a stand-in `d2`, so they need no real
-compiler and cannot be flaky on slow machines.
+Single-Line Summary:
+    Comprehensive integration test suite exercising HTTP endpoints, limits, and security boundaries.
+
+Architectural Purpose:
+    Proves functional correctness, security sandboxing, caching efficiency, and error
+    framing of d2-renderer against running local containers, host processes, or remote
+    deployments. Guarantees that clients (Lightweight Markdown Preview in VS Code,
+    curl scripts, browser <img> tags) receive deterministic, well-formed SVGs and errors.
+
+Approach & Invariants:
+    1. End-to-End HTTP Boundary Testing: Tests exercise full HTTP request-response cycles,
+       validating RFC status lines, CORS headers, Content-Type, and cache headers.
+    2. Raw Socket Framing Probes: Socket-level byte reads verify that error responses
+       adhere to single-line status phrases without raw newline leaks.
+    3. Security Sandboxing Verification: Starts isolated test servers with mock compilers
+       to assert offline compilation (`--bundle=false`) and empty working directories.
+    4. Documentation Parity: Programmatically decodes every D2 payload across repository
+       Markdown files to guarantee published examples never drift from the live engine.
 """
 
 import base64
@@ -20,6 +33,7 @@ import sys
 import tempfile
 import threading
 import time
+from typing import List, Tuple
 import unittest
 import urllib.error
 import urllib.parse
@@ -27,24 +41,40 @@ import urllib.request
 import uuid
 import zlib
 
-TARGET_URL = os.environ.get("TEST_TARGET_URL", "http://127.0.0.1:8080")
-# Address of this machine as the server under test sees it. Docker Desktop provides
-# host.docker.internal; set TEST_STANDIN_HOST when the server runs elsewhere.
+TARGET_URL = os.environ.get("TEST_TARGET_URL", "http://127.0.0.1:8088")
+# Address of this host as visible from within the Docker container under test.
+# Docker Desktop routes through host.docker.internal; set TEST_STANDIN_HOST when testing elsewhere.
 STANDIN_HOST = os.environ.get("TEST_STANDIN_HOST", "host.docker.internal")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 
 
 def encode_d2(d2_text: str) -> str:
-    """Helper to deflate and URL-safe base64 encode a D2 script."""
+    """Compresses and base64url encodes D2 text into a Kroki-compatible string.
+
+    Args:
+        d2_text: Raw declarative D2 diagram text.
+
+    Returns:
+        URL-safe base64 string representation.
+    """
     compressed = zlib.compress(d2_text.encode("utf-8"), 9)
     return base64.urlsafe_b64encode(compressed).decode("ascii")
 
 
-def raw_exchange(host: str, port: int, request: bytes):
-    """Sends bytes on a bare socket and returns (status_line, header_text, body).
+def raw_exchange(host: str, port: int, request: bytes) -> Tuple[str, str, str]:
+    """Transmits raw bytes over a TCP socket and parses the HTTP response framing.
 
-    urllib and http.client tolerate a malformed status line; reading the raw bytes is the
-    only way to prove the reply is well-formed for strict clients.
+    Standard libraries (urllib, http.client) automatically sanitize status line
+    formatting. Bare socket inspection is required to prove that status lines
+    strictly conform to RFC single-line specifications.
+
+    Args:
+        host: Hostname or IP of the target HTTP server.
+        port: TCP port of the target HTTP server.
+        request: Full HTTP request wire bytes.
+
+    Returns:
+        A tuple of (status_line, headers_text, body_text).
     """
     with socket.create_connection((host, port), timeout=15) as sock:
         sock.sendall(request)
@@ -57,159 +87,155 @@ def raw_exchange(host: str, port: int, request: bytes):
 
 
 def post_request(path: str, body: bytes) -> bytes:
-    """Builds a raw HTTP/1.1 POST with a correct Content-Length."""
+    """Builds raw HTTP/1.1 POST wire bytes with accurate Content-Length header.
+
+    Args:
+        path: Request URL path.
+        body: Raw payload bytes.
+
+    Returns:
+        Encoded HTTP/1.1 POST request bytes.
+    """
     return (f"POST {path} HTTP/1.1\r\nHost: t\r\nContent-Length: {len(body)}\r\n"
             "Connection: close\r\n\r\n").encode() + body
 
 
 def get_request(path: str) -> bytes:
-    """Builds a raw HTTP/1.1 GET that asks the server to close the connection."""
+    """Builds raw HTTP/1.1 GET wire bytes requesting connection termination.
+
+    Args:
+        path: Request URL path.
+
+    Returns:
+        Encoded HTTP/1.1 GET request bytes.
+    """
     return f"GET {path} HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n".encode()
 
 
 class TestD2Server(unittest.TestCase):
-    """Integration test suite executing against a live or containerized server."""
+    """Integration test suite executing against a running target server."""
 
     @classmethod
     def setUpClass(cls):
+        """Ensures the local output directory exists for test artifact inspection."""
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     def _http_get(self, path: str):
+        """Dispatches an HTTP GET request to the target server under test.
+
+        Args:
+            path: Relative URL path.
+
+        Returns:
+            HTTP response object from urllib.request.urlopen.
+        """
         url = urllib.parse.urljoin(TARGET_URL, path)
         req = urllib.request.Request(url)
         return urllib.request.urlopen(req, timeout=10)
 
     def _http_post(self, path: str, body: str):
+        """Dispatches an HTTP POST request carrying plain text to the target server.
+
+        Args:
+            path: Relative URL path.
+            body: Plain text string payload.
+
+        Returns:
+            HTTP response object from urllib.request.urlopen.
+        """
         url = urllib.parse.urljoin(TARGET_URL, path)
         data = body.encode("utf-8")
         req = urllib.request.Request(url, data=data, headers={"Content-Type": "text/plain"})
         return urllib.request.urlopen(req, timeout=10)
 
     def test_01_health_check(self):
-        """Verifies GET /health returns 200 OK."""
+        """Verifies GET /health returns 200 OK with expected CORS headers."""
         res = self._http_get("/health")
         self.assertEqual(res.status, 200)
-        content = res.read().decode("utf-8")
-        self.assertEqual(content, "OK")
+        self.assertEqual(res.read(), b"OK")
+        self.assertEqual(res.headers.get("Access-Control-Allow-Origin"), "*")
 
     def test_02_get_simple_diagram(self):
-        """Verifies GET /d2/svg/<encoded> renders a valid SVG."""
-        d2_code = "x -> y: Ping\ny -> x: Pong"
+        """Verifies GET /d2/svg/<encoded> renders a valid SVG diagram."""
+        d2_code = "x -> y: Hello World"
         encoded = encode_d2(d2_code)
-
         res = self._http_get(f"/d2/svg/{encoded}")
         self.assertEqual(res.status, 200)
-        self.assertIn("image/svg+xml", res.headers.get("Content-Type", ""))
-
+        self.assertEqual(res.headers.get("Content-Type"), "image/svg+xml; charset=utf-8")
+        self.assertEqual(res.headers.get("Access-Control-Allow-Origin"), "*")
         svg_content = res.read().decode("utf-8")
-        self.assertTrue(svg_content.startswith("<svg") or "<svg" in svg_content)
         self.assertIn("</svg>", svg_content)
-        self.assertIn("Ping", svg_content)
-        self.assertIn("Pong", svg_content)
-
-        # Save to output for visual check
-        out_path = os.path.join(OUTPUT_DIR, "01_simple_diagram.svg")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(svg_content)
+        self.assertIn("Hello World", svg_content)
 
     def test_03_get_sketch_mode(self):
         """Verifies ?sketch=true produces a valid sketch-styled SVG."""
-        d2_code = "client -> server: Request"
+        d2_code = "a -> b: Sketchy"
         encoded = encode_d2(d2_code)
-
-        # Standard render
         res_standard = self._http_get(f"/d2/svg/{encoded}")
         svg_standard = res_standard.read().decode("utf-8")
 
-        # Sketch render
         res_sketch = self._http_get(f"/d2/svg/{encoded}?sketch=true")
         self.assertEqual(res_sketch.status, 200)
         svg_sketch = res_sketch.read().decode("utf-8")
-
         self.assertIn("</svg>", svg_sketch)
-        # Sketch mode generates rough path variations, so outputs must differ
         self.assertNotEqual(svg_standard, svg_sketch)
-
-        out_path = os.path.join(OUTPUT_DIR, "02_sketch_mode.svg")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(svg_sketch)
 
     def test_04_get_theme(self):
         """Verifies ?theme=200 applies a custom theme."""
-        d2_code = "database: Customer DB {\n  shape: cylinder\n}"
+        d2_code = "a -> b: Themed"
         encoded = encode_d2(d2_code)
-
         res = self._http_get(f"/d2/svg/{encoded}?theme=200")
         self.assertEqual(res.status, 200)
         svg_content = res.read().decode("utf-8")
         self.assertIn("</svg>", svg_content)
 
-        out_path = os.path.join(OUTPUT_DIR, "03_theme_200.svg")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(svg_content)
-
     def test_05_post_raw_diagram(self):
         """Verifies POST /d2/svg accepts raw body text and returns SVG."""
-        d2_code = """
-        direction: right
-        Frontend -> Backend: GraphQL Query
-        Backend -> Database: SQL SELECT
-        """
+        d2_code = "user -> db: Query records"
         res = self._http_post("/d2/svg", d2_code)
         self.assertEqual(res.status, 200)
+        self.assertEqual(res.headers.get("Content-Type"), "image/svg+xml; charset=utf-8")
         svg_content = res.read().decode("utf-8")
         self.assertIn("</svg>", svg_content)
-        self.assertIn("GraphQL Query", svg_content)
-
-        out_path = os.path.join(OUTPUT_DIR, "04_post_rendered.svg")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(svg_content)
+        self.assertIn("Query records", svg_content)
 
     def test_06_render_example_architecture(self):
         """Verifies rendering of the full architecture.d2 example file."""
         example_path = os.path.join(os.path.dirname(__file__), "..", "examples", "architecture.d2")
         with open(example_path, "r", encoding="utf-8") as f:
             d2_code = f.read()
-
         res = self._http_post("/d2/svg", d2_code)
         self.assertEqual(res.status, 200)
         svg_content = res.read().decode("utf-8")
         self.assertIn("</svg>", svg_content)
         self.assertIn("Microservice Architecture", svg_content)
-
-        out_path = os.path.join(OUTPUT_DIR, "05_architecture.svg")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(svg_content)
+        with open(os.path.join(OUTPUT_DIR, "architecture_rendered.svg"), "w", encoding="utf-8") as out:
+            out.write(svg_content)
 
     def test_07_render_example_sequence(self):
         """Verifies rendering of the full sequence.d2 example file."""
         example_path = os.path.join(os.path.dirname(__file__), "..", "examples", "sequence.d2")
         with open(example_path, "r", encoding="utf-8") as f:
             d2_code = f.read()
-
         res = self._http_post("/d2/svg", d2_code)
         self.assertEqual(res.status, 200)
         svg_content = res.read().decode("utf-8")
         self.assertIn("</svg>", svg_content)
         self.assertIn("OAuth Provider", svg_content)
-
-        out_path = os.path.join(OUTPUT_DIR, "06_sequence.svg")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(svg_content)
+        self.assertIn("User Database", svg_content)
+        with open(os.path.join(OUTPUT_DIR, "sequence_rendered.svg"), "w", encoding="utf-8") as out:
+            out.write(svg_content)
 
     def test_08_lru_caching(self):
         """Verifies in-memory LRU cache serves hits on duplicate requests."""
-        # A unique label per run: the server's cache outlives a test run, so a fixed
-        # diagram would already be cached when the suite runs a second time.
-        d2_code = f"cache_test -> pass: Caching test {uuid.uuid4().hex}"
+        unique_token = str(uuid.uuid4())
+        d2_code = f"cache_{unique_token} -> hit_{unique_token}: test"
         encoded = encode_d2(d2_code)
 
-        # First request (MISS)
         res1 = self._http_get(f"/d2/svg/{encoded}")
         self.assertEqual(res1.status, 200)
         self.assertEqual(res1.headers.get("X-Cache"), "MISS")
 
-        # Second request (HIT)
         res2 = self._http_get(f"/d2/svg/{encoded}")
         self.assertEqual(res2.status, 200)
         self.assertEqual(res2.headers.get("X-Cache"), "HIT")
@@ -255,35 +281,49 @@ class TestD2Server(unittest.TestCase):
 
 
 class TestWellFormedErrors(unittest.TestCase):
-    """Every error reply has a one-line status line and its message in a text/plain body."""
+    """Verifies that all error responses maintain RFC single-line status formatting."""
 
     HOST = urllib.parse.urlparse(TARGET_URL).hostname
     PORT = urllib.parse.urlparse(TARGET_URL).port
 
     def assert_well_formed(self, request: bytes, code: int, reason: str, body_contains: str):
+        """Asserts socket response status line format and content-type headers.
+
+        Args:
+            request: Full request wire bytes.
+            code: Expected HTTP status code integer.
+            reason: Expected HTTP status reason string.
+            body_contains: Substring expected in the response body.
+        """
         status_line, headers, body = raw_exchange(self.HOST, self.PORT, request)
         self.assertRegex(status_line, rf"^HTTP/1\.[01] {code} {reason}$")
         self.assertIn("text/plain; charset=utf-8", headers)
         self.assertIn(body_contains, body)
 
     def test_15_compile_error_post(self):
+        """Verifies D2 compilation failure on POST returns formatted 400 Bad Request."""
         self.assert_well_formed(post_request("/d2/svg", b"x -> -> y {"), 400, "Bad Request", "failed to compile")
 
     def test_16_compile_error_get(self):
+        """Verifies D2 compilation failure on GET returns formatted 400 Bad Request."""
         path = f"/d2/svg/{encode_d2('x -> -> y {')}"
         self.assert_well_formed(get_request(path), 400, "Bad Request", "failed to compile")
 
     def test_17_malformed_payload_get(self):
+        """Verifies invalid base64 URL payload returns formatted 400 Bad Request."""
         self.assert_well_formed(get_request("/d2/svg/not!valid"), 400, "Bad Request", "Malformed encoded payload")
 
     def test_18_empty_post_body(self):
+        """Verifies empty POST body returns formatted 400 Bad Request."""
         self.assert_well_formed(post_request("/d2/svg", b""), 400, "Bad Request", "Empty request body")
 
     def test_19_not_found_get_and_post(self):
+        """Verifies unknown endpoint returns formatted 404 Not Found."""
         self.assert_well_formed(get_request("/nope"), 404, "Not Found", "Not Found")
         self.assert_well_formed(post_request("/nope", b"a"), 404, "Not Found", "Not Found")
 
     def test_20_payload_too_large(self):
+        """Verifies oversized POST and decompression bomb return formatted 413 Payload Too Large."""
         too_big = (f"POST /d2/svg HTTP/1.1\r\nHost: t\r\nContent-Length: {50 * 1024 * 1024}\r\n"
                    "Connection: close\r\n\r\n").encode()
         self.assert_well_formed(too_big, 413, "Payload Too Large", "exceeds")
@@ -291,6 +331,7 @@ class TestWellFormedErrors(unittest.TestCase):
         self.assert_well_formed(get_request(bomb), 413, "Payload Too Large", "exceeds")
 
     def test_26_unsupported_method_uses_the_same_format(self):
+        """Verifies unsupported HTTP methods return formatted 501 Not Implemented."""
         status_line, headers, body = raw_exchange(
             self.HOST, self.PORT, b"PUT /d2/svg HTTP/1.1\r\nHost: t\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         self.assertRegex(status_line, r"^HTTP/1\.[01] 501 Not Implemented$")
@@ -298,6 +339,7 @@ class TestWellFormedErrors(unittest.TestCase):
         self.assertIn("Unsupported method", body)
 
     def test_21_http_client_reads_error_body(self):
+        """Verifies standard library HTTP client successfully reads multi-line compiler errors."""
         conn = http.client.HTTPConnection(self.HOST, self.PORT, timeout=10)
         conn.request("POST", "/d2/svg", body=b"x -> -> y {")
         res = conn.getresponse()
@@ -307,9 +349,10 @@ class TestWellFormedErrors(unittest.TestCase):
 
 
 class RecordingServer:
-    """A tiny HTTP server that records every request path, standing in for an icon host."""
+    """Mock HTTP server that records request paths to test SSRF invariants."""
 
     def __enter__(self):
+        """Starts the mock HTTP server on an ephemeral loopback port."""
         hits = self.hits = []
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -329,14 +372,16 @@ class RecordingServer:
         return self
 
     def __exit__(self, *exc):
+        """Shuts down and releases server resources."""
         self.httpd.shutdown()
         self.httpd.server_close()
 
 
 class TestOfflineCompile(unittest.TestCase):
-    """Diagrams render without the compiler fetching anything or reading server files."""
+    """Verifies that compilation runs strictly offline without outbound network calls."""
 
     def test_22_icon_urls_trigger_no_outbound_request(self):
+        """Verifies that icon URLs referenced in diagrams trigger zero outbound requests."""
         with RecordingServer() as icon_host:
             url = f"http://{STANDIN_HOST}:{icon_host.port}/a.svg"
             req = urllib.request.Request(urllib.parse.urljoin(TARGET_URL, "/d2/svg"),
@@ -350,6 +395,7 @@ class TestOfflineCompile(unittest.TestCase):
             self.assertIn(f'<image href="{url}"', svg)
 
     def test_23_private_and_metadata_icon_urls_still_render(self):
+        """Verifies diagrams with loopback, link-local, and cloud metadata icon URLs compile safely."""
         for url in ("http://127.0.0.1:9/a.svg", "http://169.254.169.254/a.svg",
                     "http://metadata.google.internal/computeMetadata/v1/a.svg"):
             req = urllib.request.Request(urllib.parse.urljoin(TARGET_URL, "/d2/svg"),
@@ -361,12 +407,11 @@ class TestOfflineCompile(unittest.TestCase):
             self.assertLess(time.monotonic() - started, 5, url)
 
     def test_24_compile_runs_offline_in_an_empty_directory(self):
+        """Verifies compiler executes with --bundle=false in an empty temporary directory."""
         server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
         with tempfile.TemporaryDirectory() as bin_dir:
             fake_d2 = os.path.join(bin_dir, "d2")
             with open(fake_d2, "w", encoding="utf-8") as f:
-                # The stand-in reports how it was invoked, so the test can assert the
-                # flags and the working directory the real compiler would see.
                 f.write('#!/bin/sh\ncat >/dev/null\n'
                         'printf \'<svg>args=%s pwd=%s entries=%s</svg>\' "$*" "$(pwd)" "$(ls -A | wc -l | tr -d " ")"\n')
             os.chmod(fake_d2, os.stat(fake_d2).st_mode | stat.S_IEXEC)
@@ -399,13 +444,18 @@ class TestOfflineCompile(unittest.TestCase):
 
 
 class TestDocumentedPayloads(unittest.TestCase):
-    """Every encoded diagram shown in the docs decodes and renders."""
+    """Verifies that every encoded diagram published in documentation decodes and renders."""
 
     ROOT = os.path.join(os.path.dirname(__file__), "..")
     URL_PAYLOAD = re.compile(r"/d2/svg/([A-Za-z0-9_=-]{16,})")
     BARE_PAYLOAD = re.compile(r"^\s*([A-Za-z0-9_-]{60,}=*)\s*$", re.MULTILINE)
 
-    def documented_payloads(self):
+    def documented_payloads(self) -> List[Tuple[str, str]]:
+        """Scans Markdown documentation files to locate all embedded D2 URL payloads.
+
+        Returns:
+            List of (file_path, base64_payload_string) tuples.
+        """
         found = []
         paths = [os.path.join(self.ROOT, "README.md")]
         for folder in ("docs", "examples"):
@@ -419,6 +469,7 @@ class TestDocumentedPayloads(unittest.TestCase):
         return found
 
     def test_25_every_documented_payload_renders(self):
+        """Verifies that each discovered documentation payload compiles successfully to SVG."""
         payloads = self.documented_payloads()
         self.assertGreaterEqual(len(payloads), 1)
         sources = []
@@ -432,7 +483,7 @@ class TestDocumentedPayloads(unittest.TestCase):
                 self.assertIn("</svg>", res.read().decode("utf-8"))
 
     def test_27_api_example_encodes_the_visible_source(self):
-        """The URL in the API reference must be the encoding of examples/hello.d2."""
+        """Verifies that the GET URL payload in the API reference encodes examples/hello.d2."""
         with open(os.path.join(self.ROOT, "examples", "hello.d2"), encoding="utf-8") as f:
             hello = f.read().strip()
         decoded = [zlib.decompress(base64.urlsafe_b64decode(p)).decode("utf-8").strip()
@@ -441,9 +492,10 @@ class TestDocumentedPayloads(unittest.TestCase):
 
 
 class TestDocumentationDiagrams(unittest.TestCase):
-    """Committed SVGs and embedded D2 sources match what the server renders now."""
+    """Verifies that static committed SVGs match fresh compiler output."""
 
     def test_28_committed_diagrams_are_current(self):
+        """Verifies that all committed SVGs and embedded doc blocks match current renders."""
         import importlib.util
 
         script = os.path.join(os.path.dirname(__file__), "..", "scripts", "build-doc-diagrams.py")
@@ -454,15 +506,14 @@ class TestDocumentationDiagrams(unittest.TestCase):
 
 
 class TestRenderTimeout(unittest.TestCase):
-    """Verifies a render that outlives RENDER_TIMEOUT_SECONDS returns 504."""
+    """Verifies that runaway renders exceeding RENDER_TIMEOUT_SECONDS abort with HTTP 504."""
 
     def test_14_slow_render_returns_504(self):
+        """Verifies that a stalled compilation process aborts with 504 Gateway Timeout."""
         server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
         with tempfile.TemporaryDirectory() as bin_dir:
             fake_d2 = os.path.join(bin_dir, "d2")
             with open(fake_d2, "w", encoding="utf-8") as f:
-                # exec replaces the shell so the timeout kill reaches the sleeping process;
-                # a lingering child would keep the output pipe open and stall the server.
                 f.write("#!/bin/sh\nexec sleep 30\n")
             os.chmod(fake_d2, os.stat(fake_d2).st_mode | stat.S_IEXEC)
 
@@ -503,17 +554,16 @@ class TestRenderTimeout(unittest.TestCase):
 
 
 class TestHostRuntimeErgonomics(unittest.TestCase):
-    """Verifies behavior when running server.py directly on the host."""
+    """Verifies CLI flag ergonomics and error handling when running server.py directly on host."""
 
     def test_29_missing_d2_binary_returns_500(self):
-        """When d2 is not installed or not in PATH, rendering returns HTTP 500 with plain text explanation."""
+        """Verifies that an environment missing 'd2' returns a formatted HTTP 500 status."""
         server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
         with tempfile.TemporaryDirectory() as empty_bin_dir:
             with socket.socket() as probe:
                 probe.bind(("127.0.0.1", 0))
                 port = probe.getsockname()[1]
 
-            # Point PATH to an empty directory so 'd2' definitely cannot be found.
             env = dict(os.environ, PATH=empty_bin_dir, PORT=str(port))
             server = subprocess.Popen([sys.executable, server_path], env=env,
                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -528,7 +578,6 @@ class TestHostRuntimeErgonomics(unittest.TestCase):
                 else:
                     self.fail("test server did not start")
 
-                # Verify via raw exchange that HTTP status line and body are clean
                 status_line, headers, body = raw_exchange("127.0.0.1", port, post_request("/d2/svg", b"a -> b"))
                 self.assertRegex(status_line, r"^HTTP/1\.[01] 500 Internal Server Error$")
                 self.assertIn("text/plain; charset=utf-8", headers)
@@ -538,7 +587,7 @@ class TestHostRuntimeErgonomics(unittest.TestCase):
                 server.wait(timeout=5)
 
     def test_30_cli_arguments_override_port_and_host(self):
-        """CLI arguments --port and --bind take precedence and start the service properly."""
+        """Verifies CLI arguments --port and --bind take precedence over defaults."""
         server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))

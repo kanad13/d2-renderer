@@ -50,12 +50,12 @@ Build and start the container, then run the tests against it. `--add-host` lets 
 
 ```bash
 docker build -t d2-renderer:test .
-docker run -d --name d2-test -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test
+docker run -d --name d2-test -p 8088:8088 --add-host=host.docker.internal:host-gateway d2-renderer:test
 python3 -m unittest discover -s tests -v
 docker rm -f d2-test
 ```
 
-- **`TEST_TARGET_URL`:** the server under test. Default `http://127.0.0.1:8080`.
+- **`TEST_TARGET_URL`:** the server under test. Default `http://127.0.0.1:8088`.
 - **`TEST_STANDIN_HOST`:** the test machine as the server sees it. Default `host.docker.internal`. Set it when the server runs outside Docker Desktop.
 - **Without Docker:** install D2 (`brew install d2`), run `python3 server.py` in the background, then run the same test command.
 - **CI:** the `test` job in [ci.yml](./.github/workflows/ci.yml) runs this suite on every push and pull request. The `publish` job follows on `main`; `deploy` runs on manual dispatch (`workflow_dispatch`).
@@ -133,13 +133,13 @@ Or manually with explicit Docker commands:
 
 ```bash
 docker pull ghcr.io/kanad13/d2-renderer:latest
-docker run -d --name d2-published -p 8080:8080 --add-host=host.docker.internal:host-gateway ghcr.io/kanad13/d2-renderer:latest
+docker run -d --name d2-published -p 8088:8088 --add-host=host.docker.internal:host-gateway ghcr.io/kanad13/d2-renderer:latest
 python3 -m unittest discover -s tests -v
-python3 scripts/probe-behavior.py http://localhost:8080
+python3 scripts/probe-behavior.py http://localhost:8088
 docker rm -f d2-published
 ```
 
-CI executes this same verification in the `publish` job immediately after pushing to GHCR, ensuring the published artifact downloads cleanly and passes all 28 integration tests.
+CI executes this same verification in the `publish` job immediately after pushing to GHCR, ensuring the published artifact downloads cleanly and passes all 30 integration tests.
 
 ## Documentation diagrams
 

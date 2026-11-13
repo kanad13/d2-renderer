@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""Probes one running d2-renderer and prints a behavior table, so two builds can be diffed.
+"""Probes a running d2-renderer instance and prints an observable behavior matrix.
 
-Why: status codes in the unit suite say a build works; this script records HOW it behaves
-at the HTTP edge (status-line shape, icon handling, error bodies). Run it against the
-deployed service before a change and against the new build after, then compare outputs.
+Single-Line Summary:
+    Executes behavioral probes over raw sockets to verify HTTP framing and security invariants.
 
-Usage:
-    python3 scripts/probe-behavior.py <BASE_URL>      # e.g. http://localhost:8080
+Architectural Purpose:
+    Unit tests confirm functional pass/fail status; this script captures *how* the service
+    behaves at the HTTP boundary (RFC status line format, header casing, error body content-type,
+    SSRF icon safety, and Node.js fetch compatibility). Running this probe against target builds
+    ensures behavioral parity between local Docker, bare-metal Python, and Cloud Run deployments.
 
-The probes are read-only and small: a dozen requests, no load.
+Approach & Invariants:
+    1. Raw Socket Framing: Uses bare socket connections to inspect exact byte framing,
+       proving status lines contain no raw newlines that would crash strict HTTP parsers.
+    2. Security Invariant Probing: Tests offline compilation invariants by submitting
+       diagrams with private/cloud metadata icon URLs (169.254.169.254, metadata.google.internal).
+    3. Strict Client Validation: Executes Node.js `fetch` in a child process to prove
+       compatibility with real-world strict JavaScript runtimes.
 """
 
 import base64
@@ -17,6 +25,7 @@ import shutil
 import socket
 import subprocess
 import sys
+from typing import Tuple
 import urllib.parse
 import zlib
 
@@ -26,12 +35,29 @@ ICON_OK = "https://icons.terrastruct.com/essentials%2F092-graph%20bar.svg"
 
 
 def encode(src: str) -> str:
-    """Returns the URL-safe zlib+Base64 payload for D2 text."""
+    """Encodes raw D2 text into a URL-safe deflate-compressed base64 payload.
+
+    Args:
+        src: Declarative D2 script string.
+
+    Returns:
+        URL-safe base64 string matching the Kroki format.
+    """
     return base64.urlsafe_b64encode(zlib.compress(src.encode(), 9)).decode()
 
 
-def raw(base: str, method: str, path: str, body: bytes = b""):
-    """Returns (status_line, headers_text, body) read straight from a socket."""
+def raw(base: str, method: str, path: str, body: bytes = b"") -> Tuple[str, str, bytes]:
+    """Sends raw bytes over a TCP socket and returns parsed HTTP response parts.
+
+    Args:
+        base: Target server base URL (e.g. 'http://localhost:8088').
+        method: HTTP verb ('GET', 'POST', 'OPTIONS').
+        path: HTTP request path including query strings.
+        body: Raw bytes to send in the request body.
+
+    Returns:
+        A tuple of (status_line_string, headers_text, body_bytes).
+    """
     u = urllib.parse.urlparse(base)
     port = u.port or (443 if u.scheme == "https" else 80)
     sock = socket.create_connection((u.hostname, port), timeout=30)
@@ -49,20 +75,41 @@ def raw(base: str, method: str, path: str, body: bytes = b""):
     return first, hdrs, rest
 
 
-def post(base: str, d2: str, query: str = ""):
-    """POSTs D2 text over a raw socket and returns (status_line, headers, body)."""
+def post(base: str, d2: str, query: str = "") -> Tuple[str, str, bytes]:
+    """Sends a POST request with D2 diagram text over a raw socket.
+
+    Args:
+        base: Target server base URL.
+        d2: Raw D2 script text.
+        query: Optional URL query string (e.g. '?layout=tala').
+
+    Returns:
+        A tuple of (status_line_string, headers_text, body_bytes).
+    """
     return raw(base, "POST", "/d2/svg" + query, d2.encode())
 
 
 def one_line(s: str) -> str:
+    """Truncates and formats multi-line text into a single loggable string.
+
+    Args:
+        s: Input text string.
+
+    Returns:
+        Single-line formatted string truncated to 90 characters.
+    """
     return s.replace("\n", "\\n")[:90]
 
 
 def main(base: str):
-    """Runs every probe against `base` and prints the behavior table."""
+    """Executes behavioral probe suite against target base URL and prints results.
+
+    Args:
+        base: Base URL of the running d2-renderer instance (e.g. 'http://localhost:8088').
+    """
     rows = []
 
-    def add(name, value):
+    def add(name: str, value: str):
         rows.append((name, value))
 
     s, _, b = raw(base, "GET", "/health")
@@ -75,10 +122,9 @@ def main(base: str):
     add("post tala", f"{s} svg={b[:4]!r}")
 
     s, h, b = post(base, "x -> -> y {")
-    nl = "\n" in s or "\r" in s
     add("compile error status line", one_line(s))
     add("compile error body content-type", next((l for l in h.split("\r\n") if l.lower().startswith("content-type")), "n/a"))
-    add("compile error body mentions compiler", b"failed to compile" in b or b"connection missing" in b)
+    add("compile error body mentions compiler", str(b"failed to compile" in b or b"connection missing" in b))
 
     s, _, _ = raw(base, "GET", "/d2/svg/not!valid")
     add("malformed payload status line", one_line(s))
@@ -115,5 +161,5 @@ def main(base: str):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        sys.exit(__doc__)
+        sys.exit(f"Usage: {sys.argv[0]} <BASE_URL>  # e.g. http://localhost:8088")
     main(sys.argv[1].rstrip("/"))

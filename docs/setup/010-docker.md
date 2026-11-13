@@ -7,7 +7,7 @@ Run the `d2-renderer` container on your local machine, keep it current, and conf
 Start the prebuilt multi-architecture container from GitHub Container Registry:
 
 ```bash
-docker run -d --name d2-renderer -p 8080:8080 ghcr.io/kanad13/d2-renderer:latest
+docker run -d --name d2-renderer -p 8088:8088 ghcr.io/kanad13/d2-renderer:latest
 ```
 
 Docker automatically selects the matching architecture:
@@ -17,7 +17,7 @@ Docker automatically selects the matching architecture:
 Verify the service is healthy:
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8088/health
 ```
 
 The reply is `OK`. The container image defines a Docker health check that calls the same endpoint, so `docker ps` reports `healthy` after several seconds.
@@ -39,7 +39,7 @@ Pull the newest build, remove the old container, and start a fresh container:
 ```bash
 docker pull ghcr.io/kanad13/d2-renderer:latest
 docker rm -f d2-renderer
-docker run -d --name d2-renderer -p 8080:8080 ghcr.io/kanad13/d2-renderer:latest
+docker run -d --name d2-renderer -p 8088:8088 ghcr.io/kanad13/d2-renderer:latest
 ```
 
 To pin a specific release, use a commit SHA tag from the [GitHub Packages page](https://github.com/kanad13/d2-renderer/pkgs/container/d2-renderer) instead of `latest`.
@@ -50,22 +50,23 @@ Configure the container using environment variables passed with `-e`:
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
-| `PORT` | `8080` | Port the HTTP service listens on inside the container. |
+| `PORT` | `8088` | Port the HTTP service listens on inside the container. |
+| `HOST` | `0.0.0.0` | Network interface address to bind inside the container. |
 | `MAX_SOURCE_BYTES` | `262144` (256 KiB) | Maximum diagram payload size accepted, as received or after decompression. |
 | `RENDER_TIMEOUT_SECONDS` | `20` | Maximum time allowed for a single render before aborting with `504`. |
 
 Example: Run on host port 9090 with a 1 MiB payload limit:
 
 ```bash
-docker run -d --name d2-renderer -p 9090:8080 -e MAX_SOURCE_BYTES=1048576 ghcr.io/kanad13/d2-renderer:latest
+docker run -d --name d2-renderer -p 9090:8088 -e MAX_SOURCE_BYTES=1048576 ghcr.io/kanad13/d2-renderer:latest
 ```
 
 ## Security: Restricting Access to Localhost
 
-By default, `-p 8080:8080` binds to all host network interfaces (`0.0.0.0`), allowing devices on the local network to reach the renderer. To restrict incoming connections strictly to your machine, bind to the loopback interface:
+By default, `-p 8088:8088` binds to all host network interfaces (`0.0.0.0`), allowing devices on the local network to reach the renderer. To restrict incoming connections strictly to your machine, bind to the loopback interface:
 
 ```bash
-docker run -d --name d2-renderer -p 127.0.0.1:8080:8080 ghcr.io/kanad13/d2-renderer:latest
+docker run -d --name d2-renderer -p 127.0.0.1:8088:8088 ghcr.io/kanad13/d2-renderer:latest
 ```
 
 ## Building From Source
@@ -74,14 +75,14 @@ To build and run from a local checkout:
 
 ```bash
 docker build -t d2-renderer:local .
-docker run -d --name d2-renderer -p 8080:8080 d2-renderer:local
+docker run -d --name d2-renderer -p 8088:8088 d2-renderer:local
 ```
 
 ## Troubleshooting
 
 | Symptom | Cause | Resolution |
 | :--- | :--- | :--- |
-| `port is already allocated` | Another local process uses port 8080. | Publish to a different host port (e.g. `-p 9090:8080`). |
+| `port is already allocated` | Another local process uses port 8088. | Publish to a different host port (e.g. `-p 9090:8088`). |
 | `container name "/d2-renderer" is already in use` | An old container remains stopped. | Remove it with `docker rm -f d2-renderer` and re-run. |
 | `curl` cannot connect | Container is stopped or starting. | Run `docker ps` and inspect output with `docker logs d2-renderer`. |
 | Diagram returns `400 Bad Request` | D2 script contains syntax errors. | Inspect response body for compiler line and column markers. |

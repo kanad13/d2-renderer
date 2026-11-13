@@ -14,8 +14,8 @@ Follow these direct steps whenever you need to run or test the service.
 
 - **Option A: Run Locally (Recommended for Daily Editing):**
   - Keeps diagram text completely on your machine with zero network latency.
-  - Start the container locally: `docker run -d --name d2-test -p 8080:8080 ghcr.io/kanad13/d2-renderer:latest`
-  - Set `lightweightMarkdownViewer.d2.rendererUrl` in VS Code to `http://localhost:8080`.
+  - Start the container locally: `docker run -d --name d2-test -p 8088:8088 ghcr.io/kanad13/d2-renderer:latest`
+  - Set `lightweightMarkdownViewer.d2.rendererUrl` in VS Code to `http://localhost:8088`.
 
 - **Option B: Use the Cloud Run Deployment:**
   - Bring the service online before sharing previews or testing remote rendering:
@@ -67,7 +67,7 @@ curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" <SERVICE_URL
   - Forwards authenticated requests through a local port without opening the service to the internet.
 
 ```bash
-gcloud run services proxy d2-renderer --project=<PROJECT_ID> --region=<REGION> --port=8080
+gcloud run services proxy d2-renderer --project=<PROJECT_ID> --region=<REGION> --port=8088
 ```
 
 ## Deploy updates to Cloud Run

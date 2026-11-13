@@ -11,7 +11,7 @@ limits: Size check {
 cache: LRU cache
 compile: "d2 --bundle=false\nin an empty directory"
 reply: SVG response
-errors: "Error reply\n400 / 413 / 504\none-line status, text body" {
+errors: "Error reply\n400 / 413 / 500 / 504\none-line status, text body" {
   style.stroke: "#C5221F"
 }
 
@@ -22,4 +22,4 @@ limits -> cache: no
 cache -> reply: hit
 cache -> compile: miss
 compile -> reply: stored in cache
-compile -> errors: syntax error (400)\ntimeout (504)
+compile -> errors: syntax error (400)\nmissing binary (500)\ntimeout (504)

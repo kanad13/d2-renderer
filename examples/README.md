@@ -470,13 +470,13 @@ vars: {
 Start the renderer as shown in the [Setup Guide](../docs/setup/README.md), then post a file:
 
 ```bash
-curl -X POST --data-binary @examples/architecture.d2 http://localhost:8080/d2/svg -o architecture.svg
+curl -X POST --data-binary @examples/architecture.d2 http://localhost:8088/d2/svg -o architecture.svg
 ```
 
 Add query parameters for another look:
 
 ```bash
-curl -X POST --data-binary @examples/architecture.d2 "http://localhost:8080/d2/svg?sketch=true&theme=200&layout=tala" -o architecture-sketch.svg
+curl -X POST --data-binary @examples/architecture.d2 "http://localhost:8088/d2/svg?sketch=true&theme=200&layout=tala" -o architecture-sketch.svg
 ```
 
 The [API reference](../docs/020-api-reference.md) lists every parameter and shows how to embed a diagram with an `<img>` tag.

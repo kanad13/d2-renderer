@@ -1,6 +1,6 @@
 # API reference
 
-The service has three endpoints. Examples use `http://localhost:8080`; replace it with your own address.
+The service has three endpoints. Examples use `http://localhost:8088`; replace it with your own address.
 
 | Method and path         | Purpose                                                |
 | :---------------------- | :----------------------------------------------------- |
@@ -16,7 +16,7 @@ Send the D2 text as the request body. The reply is the SVG.
 
 ```bash
 printf 'User -> Service: Call API' \
-  | curl -X POST --data-binary @- http://localhost:8080/d2/svg -o diagram.svg
+  | curl -X POST --data-binary @- http://localhost:8088/d2/svg -o diagram.svg
 ```
 
 - **Request:**
@@ -34,13 +34,13 @@ The path carries the diagram, so an `<img src>` tag can show it. The reply match
 
 ### Query parameters
 
-| Parameter | Values                                | Default | Effect                       |
-| :-------- | :------------------------------------ | :------ | :--------------------------- |
-| `sketch`  | `true`, `1`, `yes`                    | off     | Draw with a hand-drawn look. |
-| `theme`   | a D2 theme ID such as `0`, `1`, `200` | `0`     | Apply a D2 colour theme.     |
-| `layout`  | `dagre`, `elk`, `tala`                | `dagre` | Choose the layout engine.    |
+| Parameter | Values                                | Default                   | Effect                       |
+| :-------- | :------------------------------------ | :------------------------ | :--------------------------- |
+| `sketch`  | `true`, `1`, `yes`                    | off                       | Draw with a hand-drawn look. |
+| `theme`   | a D2 theme ID such as `0`, `1`, `200` | Passthrough (or D2 internal) | Apply a D2 colour theme.  |
+| `layout`  | `dagre`, `elk`, `tala`                | Passthrough (or D2 internal) | Choose the layout engine. |
 
-Query parameters work on `POST /d2/svg` too. The service ignores a `theme` or `layout` value that contains anything besides letters, digits, `_` and `-`.
+Query parameters work on `POST /d2/svg` too. When omitted, the service passes no `--theme` or `--layout` flag, allowing embedded `vars: {d2-config: ...}` settings to govern. The service sanitizes input, ignoring any `theme` or `layout` value that contains characters outside letters, digits, `_` and `-`.
 
 ### Encode a diagram
 
@@ -92,7 +92,7 @@ The encoder turns that source into this URL:
 
 ```html
 <img
-  src="http://localhost:8080/d2/svg/eNpNjDsOwkAMBXuf4l1gG0oXFEgoDRW_fhWbxRJ4JWcJQih3JxEUlE_zZsYcA-NNgKxSX_1i5TuBW37VR0vqxVwZkkvoDCaaSCy0b1adEVaujTZRn4MG0nrphLpoaDC67RFis5nvOO139AeX709jHM4dfQAnciyf"
+  src="http://localhost:8088/d2/svg/eNpNjDsOwkAMBXuf4l1gG0oXFEgoDRW_fhWbxRJ4JWcJQih3JxEUlE_zZsYcA-NNgKxSX_1i5TuBW37VR0vqxVwZkkvoDCaaSCy0b1adEVaujTZRn4MG0nrphLpoaDC67RFis5nvOO139AeX709jHM4dfQAnciyf"
   alt="Browser to d2-renderer round trip"
 />
 ```
@@ -109,10 +109,11 @@ Every error reply has a one-line status and a `text/plain; charset=utf-8` body w
 
 | Status | Reason            | Cause                                                                                 | Body                                                   |
 | :----- | :---------------- | :------------------------------------------------------------------------------------ | :----------------------------------------------------- |
-| `400`  | Bad Request       | D2 syntax error, an undecodable payload, an empty body or an invalid `Content-Length` | The message. For a D2 error it is the compiler output. |
-| `404`  | Not Found         | A path the service does not serve                                                     | A hint naming the valid paths.                         |
-| `413`  | Payload Too Large | Text above `MAX_SOURCE_BYTES`, as sent or after decompression                         | The limit.                                             |
-| `504`  | Gateway Timeout   | The render ran past `RENDER_TIMEOUT_SECONDS`                                          | The limit.                                             |
+| `400`  | Bad Request           | D2 syntax error, an undecodable payload, an empty body or an invalid `Content-Length` | The message. For a D2 error it is the compiler output. |
+| `404`  | Not Found             | A path the service does not serve                                                     | A hint naming the valid paths.                         |
+| `413`  | Payload Too Large     | Text above `MAX_SOURCE_BYTES`, as sent or after decompression                         | The limit.                                             |
+| `500`  | Internal Server Error | D2 compiler binary `d2` not found on system PATH                                      | Explanatory message to install D2 or use Docker.       |
+| `504`  | Gateway Timeout       | The render ran past `RENDER_TIMEOUT_SECONDS`                                          | The limit.                                             |
 
 A D2 syntax error looks like this:
 

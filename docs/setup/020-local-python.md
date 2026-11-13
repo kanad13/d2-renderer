@@ -29,12 +29,12 @@ From the root of the repository, run:
 python3 server.py
 ```
 
-The service begins listening on `http://0.0.0.0:8080`.
+The service begins listening on `http://0.0.0.0:8088`.
 
 Verify reachability:
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8088/health
 ```
 
 The response is `OK`.
@@ -48,7 +48,7 @@ usage: server.py [-h] [--port PORT] [--bind BIND]
 
 options:
   -h, --help       show this help message and exit
-  --port, -p PORT  Port to listen on (default: $PORT or 8080)
+  --port, -p PORT  Port to listen on (default: $PORT or 8088)
   --bind, -b BIND  Address to bind to (default: $HOST or 0.0.0.0)
 ```
 
@@ -57,7 +57,7 @@ options:
 Bind strictly to localhost loopback to prevent network access and avoid OS firewall warnings:
 
 ```bash
-python3 server.py --bind 127.0.0.1 --port 8080
+python3 server.py --bind 127.0.0.1 --port 8088
 ```
 
 Use environment variables (useful in CI runners):
@@ -65,6 +65,16 @@ Use environment variables (useful in CI runners):
 ```bash
 PORT=9090 HOST=127.0.0.1 python3 server.py
 ```
+
+## Environment Variables
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `PORT` | `8088` | Port number the HTTP service listens on. Overridden by CLI `--port`. |
+| `HOST` / `BIND_ADDRESS` | `0.0.0.0` | IP address to bind to. Overridden by CLI `--bind`. |
+| `MAX_SOURCE_BYTES` | `262144` (256 KiB) | Maximum allowed size of diagram source text in bytes. |
+| `RENDER_TIMEOUT_SECONDS` | `20` | Subprocess compilation timeout in seconds before sending `504 Gateway Timeout`. |
+| `CACHE_MAX_AGE_SECONDS` | `86400` (24h) | Value sent in `Cache-Control: public, max-age=...` response header. |
 
 ## Running as a Background Daemon
 
@@ -85,7 +95,7 @@ Create a plist file at `~/Library/LaunchAgents/com.user.d2-renderer.plist`:
         <string>--bind</string>
         <string>127.0.0.1</string>
         <string>--port</string>
-        <string>8080</string>
+        <string>8088</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -110,7 +120,7 @@ Description=D2 Diagram Rendering Microservice
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 <PATH_TO_REPO>/server.py --bind 127.0.0.1 --port 8080
+ExecStart=/usr/bin/python3 <PATH_TO_REPO>/server.py --bind 127.0.0.1 --port 8088
 Restart=on-failure
 Environment=PYTHONUNBUFFERED=1
 
@@ -136,7 +146,7 @@ When run on bare metal, `server.py` enforces the same safety constraints as the 
 | :--- | :--- | :--- |
 | `WARNING: 'd2' compiler binary not found in PATH` | D2 CLI is not installed or not exported in `$PATH`. | Install D2 via `brew install d2` or add its location to `$PATH`. |
 | Diagram render returns `500 Internal Server Error` | The server attempted to compile a diagram but could not execute `d2`. | Ensure `which d2` succeeds in the shell where `server.py` was started. |
-| `OSError: [Errno 48] Address already in use` | Another program uses port 8080. | Pass `--port 9090` to select an alternate port. |
+| `OSError: [Errno 48] Address already in use` | Another program uses port 8088. | Pass `--port 9090` to select an alternate port. |
 | macOS alerts "Do you want to accept incoming network connections?" | Server bound to `0.0.0.0`. | Run with `--bind 127.0.0.1`. |
 
 ## Navigation

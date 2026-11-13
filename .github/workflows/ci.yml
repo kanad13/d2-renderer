@@ -27,11 +27,11 @@ jobs:
 
       - name: Run container
         run: |
-          docker run -d --name d2-test -p 8080:8080 --add-host=host.docker.internal:host-gateway d2-renderer:test
+          docker run -d --name d2-test -p 8088:8088 --add-host=host.docker.internal:host-gateway d2-renderer:test
 
       - name: Wait for service health
         run: |
-          timeout 30s bash -c 'until curl -sf http://localhost:8080/health; do sleep 1; done'
+          timeout 30s bash -c 'until curl -sf http://localhost:8088/health; do sleep 1; done'
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -111,8 +111,8 @@ jobs:
       - name: Pull and test published image
         run: |
           docker pull ghcr.io/${{ github.repository }}:${{ github.sha }}
-          docker run -d --name d2-published -p 8080:8080 --add-host=host.docker.internal:host-gateway ghcr.io/${{ github.repository }}:${{ github.sha }}
-          timeout 30s bash -c 'until curl -sf http://localhost:8080/health; do sleep 1; done'
+          docker run -d --name d2-published -p 8088:8088 --add-host=host.docker.internal:host-gateway ghcr.io/${{ github.repository }}:${{ github.sha }}
+          timeout 30s bash -c 'until curl -sf http://localhost:8088/health; do sleep 1; done'
           python3 -m unittest discover -s tests -v
           docker rm -f d2-published
 
@@ -144,7 +144,7 @@ jobs:
           image: ghcr.io/${{ github.repository }}:${{ github.sha }}
           timeout: 30s
           flags: >-
-            --port=8080
+            --port=8088
             --no-allow-unauthenticated
             --min-instances=0
             --max-instances=1

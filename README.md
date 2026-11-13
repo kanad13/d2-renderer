@@ -79,7 +79,7 @@ Run `d2-renderer` in whatever way matches your infrastructure and security const
 | **Native Python** | You want zero container overhead or Docker is restricted. | Python standard library only; zero `pip` packages; instant startup; executes local `d2` binary safely. | [Native Python Runbook](./docs/setup/020-local-python.md) |
 | **Google Cloud Run** | You want a shared team service or public `<img>` URLs. | Serverless scale-to-zero; free-tier friendly; keyless OIDC GitHub deployment; 1-command public IAM toggle. | [Cloud Run Runbook](./docs/setup/030-cloud-run.md) |
 
-Every footprint provides the exact same HTTP contract. A client configured to talk to `http://localhost:8080` can switch to a Cloud Run URL with zero code changes.
+Every footprint provides the exact same HTTP contract. A client configured to talk to `http://localhost:8088` can switch to a Cloud Run URL with zero code changes.
 
 ---
 
@@ -89,13 +89,13 @@ Once your renderer is running, POST raw D2 script to `/d2/svg`:
 
 ```bash
 printf 'client -> server: request\nserver -> client: response' \
-  | curl -X POST --data-binary @- http://localhost:8080/d2/svg -o hello.svg
+  | curl -X POST --data-binary @- http://localhost:8088/d2/svg -o hello.svg
 ```
 
 Or reference a GET URL in Markdown or HTML:
 
 ```markdown
-![Architecture Diagram](http://localhost:8080/d2/svg/eNqNU01PGzEQvftXjFKpKgeiqkUI-VApDQlFAimQAOeJd7prxbVh7KWsUP47Y29CKKCKy8rzPO_Nx_NWlskkG7wGtnWTlEo2OdJwbg2HSHxvDcGITWOTJLZMSrUCRw03tITPcB6W1hFcZQweFUBs8Fb4txIHr9ZK1ZjoL3YaRrNTOOmDl5kNPWAtqQKkztHwt3VOw-DT5Gj6dToZZIlNH1L01Cdijw7mG6hXKsSYOKxov8LYaPiuBMc2yXEkX_LJGsyDbpmFuGsXzQprEmidiTKTs77W8LM_fIjE5CtiYg3H3-CyBB-gvhn7cHowGQ2KaB49BZZE0cSEcIYdcVGqlhpmIaaaaX5x9q-46aRnqV40AAyaRtBLqmz8T-J64yzs_4Bnz34tFrO5UO9aiiluvcwpW0-G_ZKv0dlKbmEhHvh3E3f76ZcDxxZrxj_wZX59svcu5dmHGQeJo_h_H_LN7k2U-oXUb2qYN3PREncwZqqy8eiietPFS8pmQ-OGzGrb3Dhj6nUnrwvdsM0zM_qI5T9STzt8GQs=)
+![Architecture Diagram](http://localhost:8088/d2/svg/eNqNU01PGzEQvftXjFKpKgeiqkUI-VApDQlFAimQAOeJd7prxbVh7KWsUP47Y29CKKCKy8rzPO_Nx_NWlskkG7wGtnWTlEo2OdJwbg2HSHxvDcGITWOTJLZMSrUCRw03tITPcB6W1hFcZQweFUBs8Fb4txIHr9ZK1ZjoL3YaRrNTOOmDl5kNPWAtqQKkztHwt3VOw-DT5Gj6dToZZIlNH1L01Cdijw7mG6hXKsSYOKxov8LYaPiuBMc2yXEkX_LJGsyDbpmFuGsXzQprEmidiTKTs77W8LM_fIjE5CtiYg3H3-CyBB-gvhn7cHowGQ2KaB49BZZE0cSEcIYdcVGqlhpmIaaaaX5x9q-46aRnqV40AAyaRtBLqmz8T-J64yzs_4Bnz34tFrO5UO9aiiluvcwpW0-G_ZKv0dlKbmEhHvh3E3f76ZcDxxZrxj_wZX59svcu5dmHGQeJo_h_H_LN7k2U-oXUb2qYN3PREncwZqqy8eiietPFS8pmQ-OGzGrb3Dhj6nUnrwvdsM0zM_qI5T9STzt8GQs=)
 ```
 
 See the [API Reference](./docs/020-api-reference.md) for full parameter support (`?sketch=true`, `?theme=<id>`, `?layout=dagre|elk|tala`).

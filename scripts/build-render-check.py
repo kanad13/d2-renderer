@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
-"""Builds render-check/index.html: every sample diagram, rendered by each configured server.
+"""Builds render-check/index.html: visual verification page across configured servers.
 
-The page exists so a human or coding agent can LOOK at the output. A 200 status proves the
-service answered; only a screenshot proves labels are not clipped and options visibly work.
+Single-Line Summary:
+    Generates a local HTML matrix rendering test diagrams against local and remote servers.
 
-Usage:
-    python3 scripts/build-render-check.py [--local URL] [--remote URL]
+Architectural Purpose:
+    Provides human and coding agent visual verification of rendered SVGs. HTTP 200
+    responses confirm network and process execution, but cannot verify whether text
+    is clipped, fonts are rendered accurately, or sketch and theme flags apply visibly.
 
-Remote defaults to the RENDERER_REMOTE_URL environment variable; omit it to render only
-the local column. Output is git-ignored.
+Approach & Invariants:
+    1. Comprehensive Test Cases: Exercises all exposed D2 features (dagre, elk, tala,
+       sketch mode, dark/light themes, SQL tables, nested containers, unicode).
+    2. Side-by-Side Comparison: Pairs local (Docker or host) and remote (Cloud Run)
+       images side-by-side to detect rendering regressions or font discrepancies.
+    3. Browser Self-Testing: Injected client-side JavaScript measures natural image
+       dimensions and reports broken images directly in the browser UI.
 """
 
 import argparse
@@ -16,11 +23,12 @@ import base64
 import html
 import os
 import pathlib
+from typing import Dict, List, Tuple
 import zlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# (title, d2 source, query string). Inline cases cover each feature the service exposes.
+# Test cases covering core features: (title, d2_source, query_string).
 INLINE_CASES = [
     ("Ping / pong", "x -> y: Ping\ny -> x: Pong", ""),
     ("Cylinder shape", "database: Customer DB {\n  shape: cylinder\n}", ""),
@@ -54,23 +62,37 @@ INLINE_CASES = [
 
 
 def encode(source: str) -> str:
-    """Returns the URL-safe payload (zlib, then Base64) that the service decodes."""
+    """Encodes raw D2 source into a URL-safe deflate-compressed base64 payload.
+
+    Args:
+        source: Raw D2 declarative diagram script.
+
+    Returns:
+        URL-safe base64 string matching the Kroki encoding format.
+    """
     return base64.urlsafe_b64encode(zlib.compress(source.encode("utf-8"), 9)).decode("ascii")
 
 
-def collect_cases():
-    """Returns (title, D2 source, query string) for the inline cases and every examples/*.d2 file."""
+def collect_cases() -> List[Tuple[str, str, str]]:
+    """Gathers all inline test cases and sample diagram files from examples/.
+
+    Returns:
+        List of (case_title, d2_source_text, query_string) tuples.
+    """
     cases = list(INLINE_CASES)
     for path in sorted((ROOT / "examples").glob("*.d2")):
         cases.append((f"examples/{path.name}", path.read_text(encoding="utf-8"), ""))
     return cases
 
 
-def build(servers: dict) -> str:
-    """Returns the check page HTML with one row per case and one image per server.
+def build(servers: Dict[str, str]) -> str:
+    """Assembles the complete HTML verification matrix document.
 
     Args:
-        servers: Column label to base URL, for example the local and remote renderers.
+        servers: Mapping of column labels (e.g. 'local') to base URLs.
+
+    Returns:
+        Full HTML document string ready to be written to disk.
     """
     rows = []
     for title, source, query in collect_cases():
@@ -98,24 +120,35 @@ PAGE = """<!doctype html>
   code { background: #eee; padding: 1px 5px; border-radius: 3px; }
   .row { display: flex; gap: 16px; flex-wrap: wrap; }
   .cell { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 8px; flex: 1 1 420px; min-width: 0; }
-  .tag { font-weight: 600; margin-bottom: 6px; }
-  .status { margin-left: 8px; font-weight: 400; padding: 1px 6px; border-radius: 3px; background: #eee; }
-  .ok .status { background: #cfeccf; } .bad .status { background: #f5c2c2; }
-  img { display: block; margin: 0 auto; max-width: 100%; max-height: 520px; }
-  #summary { font-weight: 600; padding: 8px 12px; background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+  .tag { font-size: 11px; text-transform: uppercase; color: #666; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .cell img { max-width: 100%; height: auto; display: block; border: 1px dashed #eee; }
+  .cell.bad { border-color: #d93025; background: #fce8e6; }
+  .cell.ok { border-color: #1e8e3e; }
+  .status { font-weight: bold; }
+  #summary { font-size: 16px; margin: 12px 0 24px; padding: 8px 12px; border-radius: 4px; display: inline-block; }
+  #summary.ok { background: #e6f4ea; color: #137333; }
+  #summary.bad { background: #fce8e6; color: #c5221f; }
 </style></head><body>
-<h1>d2-renderer render check</h1>
-<p id="summary">checking...</p>
+<h1>d2-renderer visual render check</h1>
+<div id="summary" class="bad">running checks…</div>
 {{BODY}}
 <script>
-  const cells = [...document.querySelectorAll('.cell')];
-  let pending = cells.length, bad = 0;
+  const imgs = Array.from(document.querySelectorAll('.cell img'));
+  let pending = imgs.length;
+  let bad = 0;
   const finish = () => {
-    document.getElementById('summary').textContent =
-      bad === 0 ? `All ${cells.length} images loaded` : `${bad} of ${cells.length} images FAILED`;
+    const s = document.getElementById('summary');
+    if (bad === 0) {
+      s.className = 'ok';
+      s.textContent = `ALL ${imgs.length} RENDERS PASSED`;
+    } else {
+      s.className = 'bad';
+      s.textContent = `${bad} OF ${imgs.length} RENDERS FAILED`;
+    }
   };
-  cells.forEach(cell => {
-    const img = cell.querySelector('img'), status = cell.querySelector('.status');
+  imgs.forEach(img => {
+    const cell = img.closest('.cell');
+    const status = cell.querySelector('.status');
     const done = ok => {
       cell.classList.add(ok ? 'ok' : 'bad');
       status.textContent = ok ? `loaded ${img.naturalWidth}x${img.naturalHeight}` : 'FAILED';
@@ -130,13 +163,13 @@ PAGE = """<!doctype html>
 
 
 def main():
-    """Writes render-check/index.html for the local server and the optional remote one."""
+    """CLI entry point for generating render-check/index.html."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--local", default="http://localhost:8080")
-    parser.add_argument("--remote", default=os.environ.get("RENDERER_REMOTE_URL", ""))
+    parser.add_argument("--local", default="http://localhost:8088", help="Local renderer URL (default: http://localhost:8088)")
+    parser.add_argument("--remote", default=os.environ.get("RENDERER_REMOTE_URL", ""), help="Remote renderer URL")
     args = parser.parse_args()
 
-    servers = {"local (Docker)": args.local}
+    servers = {"local": args.local}
     if args.remote:
         servers["remote (Cloud Run)"] = args.remote
 

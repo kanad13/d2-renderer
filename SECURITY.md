@@ -29,7 +29,7 @@ d2-renderer compiles diagram text that anyone can send, so it treats every diagr
 - **Replies allow any origin (`Access-Control-Allow-Origin: *`).**
   - A web page you visit can ask a container on your machine to render a diagram. The service stores nothing and holds no secrets, so a page can use its compute and nothing else. Stop the container when you do not use it.
 - **Docker publishes the port on every network interface by default.**
-  - Other machines on your network can reach a container started with `-p 8080:8080`. [Run with Docker](./docs/setup/010-docker.md#security-restricting-access-to-localhost) shows how to limit it to your machine.
+  - Other machines on your network can reach a container started with `-p 8088:8088`. [Run with Docker](./docs/setup/010-docker.md#security-restricting-access-to-localhost) shows how to limit it to your machine.
 - **Icons do not load.**
   - A diagram's icon URLs stay as references in the SVG, and browsers do not load them through an `<img>` tag. Use a renderer built for hosted icons, such as Kroki, when you need them.
 - **D2 is pinned.**
