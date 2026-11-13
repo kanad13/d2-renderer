@@ -141,4 +141,4 @@ err: -:1:11: maps must be terminated with }
 ## Navigation
 
 - [Documentation index](./README.md)
-- Previous: [Run locally](./010-run-locally.md) · Next: [Architecture](./030-architecture.md)
+- Previous: [Setup Guide](./setup/README.md) · Next: [Architecture](./030-architecture.md)

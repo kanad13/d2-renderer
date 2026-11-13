@@ -467,7 +467,7 @@ vars: {
 
 ## Render an example yourself
 
-Start the container as shown in [Run locally](../docs/010-run-locally.md), then post a file:
+Start the renderer as shown in the [Setup Guide](../docs/setup/README.md), then post a file:
 
 ```bash
 curl -X POST --data-binary @examples/architecture.d2 http://localhost:8080/d2/svg -o architecture.svg

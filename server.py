@@ -18,11 +18,13 @@ every error reply has a one-line status with the message in a text/plain body, b
 strict HTTP clients reject multi-line status lines.
 """
 
+import argparse
 import base64
 import functools
 import http.server
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import urllib.parse
@@ -32,6 +34,7 @@ from typing import Tuple
 
 # Cloud Run injects PORT; 8080 keeps local and Docker runs unchanged.
 PORT = int(os.environ.get("PORT", "8080"))
+BIND_ADDRESS = os.environ.get("HOST", "0.0.0.0")
 
 # Limits exist because the service is public: each render spawns a process, so
 # unbounded input or runtime would let one caller exhaust a small free-tier instance.
@@ -90,7 +93,13 @@ def compile_d2_cached(source_text: str, sketch: bool, theme: str, layout: str) -
 
 # Short reasons for the status line. http.server's own table says "Request Entity Too Large"
 # for 413; the current RFC name is used instead.
-ERROR_REASONS = {400: "Bad Request", 404: "Not Found", 413: "Payload Too Large", 504: "Gateway Timeout"}
+ERROR_REASONS = {
+    400: "Bad Request",
+    404: "Not Found",
+    413: "Payload Too Large",
+    500: "Internal Server Error",
+    504: "Gateway Timeout",
+}
 
 
 class D2Handler(http.server.BaseHTTPRequestHandler):
@@ -163,6 +172,13 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
             return
         except subprocess.TimeoutExpired:
             self._send_error_text(504, f"Rendering exceeded {RENDER_TIMEOUT_SECONDS}s limit")
+            return
+        except FileNotFoundError:
+            self._send_error_text(
+                500,
+                "D2 compiler binary 'd2' not found on system PATH. "
+                "Install D2 (https://d2lang.com/tour/install) or run via Docker.",
+            )
             return
 
         is_cached = compile_d2_cached.cache_info().hits > cache_info_before.hits
@@ -239,10 +255,15 @@ class D2Handler(http.server.BaseHTTPRequestHandler):
         self._send_error_text(404, "Not Found. POST to /d2/svg")
 
 
-def run(port: int = PORT):
+def run(host: str = BIND_ADDRESS, port: int = PORT):
     """Starts the threaded HTTP server."""
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", port), D2Handler)
-    print(f"D2 Renderer microservice listening on http://0.0.0.0:{port}")
+    if not shutil.which("d2"):
+        print(
+            "WARNING: 'd2' compiler binary not found in PATH.\n"
+            "Install D2 (https://d2lang.com/tour/install or 'brew install d2') to enable diagram rendering."
+        )
+    server = http.server.ThreadingHTTPServer((host, port), D2Handler)
+    print(f"D2 Renderer microservice listening on http://{host}:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -251,5 +272,26 @@ def run(port: int = PORT):
         server.server_close()
 
 
+def main():
+    """Parses CLI options and launches the server."""
+    parser = argparse.ArgumentParser(description="D2 Diagram Rendering HTTP Microservice")
+    parser.add_argument(
+        "--port",
+        "-p",
+        type=int,
+        default=PORT,
+        help="Port to listen on (default: $PORT or 8080)",
+    )
+    parser.add_argument(
+        "--bind",
+        "-b",
+        type=str,
+        default=BIND_ADDRESS,
+        help="Address to bind to (default: $HOST or 0.0.0.0)",
+    )
+    args = parser.parse_args()
+    run(host=args.bind, port=args.port)
+
+
 if __name__ == "__main__":
-    run()
+    main()

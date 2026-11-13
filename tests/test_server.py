@@ -502,5 +502,66 @@ class TestRenderTimeout(unittest.TestCase):
                 server.wait(timeout=5)
 
 
+class TestHostRuntimeErgonomics(unittest.TestCase):
+    """Verifies behavior when running server.py directly on the host."""
+
+    def test_29_missing_d2_binary_returns_500(self):
+        """When d2 is not installed or not in PATH, rendering returns HTTP 500 with plain text explanation."""
+        server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
+        with tempfile.TemporaryDirectory() as empty_bin_dir:
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0))
+                port = probe.getsockname()[1]
+
+            # Point PATH to an empty directory so 'd2' definitely cannot be found.
+            env = dict(os.environ, PATH=empty_bin_dir, PORT=str(port))
+            server = subprocess.Popen([sys.executable, server_path], env=env,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                base = f"http://127.0.0.1:{port}"
+                for _ in range(50):
+                    try:
+                        urllib.request.urlopen(base + "/health", timeout=1)
+                        break
+                    except OSError:
+                        time.sleep(0.1)
+                else:
+                    self.fail("test server did not start")
+
+                # Verify via raw exchange that HTTP status line and body are clean
+                status_line, headers, body = raw_exchange("127.0.0.1", port, post_request("/d2/svg", b"a -> b"))
+                self.assertRegex(status_line, r"^HTTP/1\.[01] 500 Internal Server Error$")
+                self.assertIn("text/plain; charset=utf-8", headers)
+                self.assertIn("D2 compiler binary 'd2' not found on system PATH", body)
+            finally:
+                server.terminate()
+                server.wait(timeout=5)
+
+    def test_30_cli_arguments_override_port_and_host(self):
+        """CLI arguments --port and --bind take precedence and start the service properly."""
+        server_path = os.path.join(os.path.dirname(__file__), "..", "server.py")
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+
+        server = subprocess.Popen([sys.executable, server_path, "--port", str(port), "--bind", "127.0.0.1"],
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            base = f"http://127.0.0.1:{port}"
+            for _ in range(50):
+                try:
+                    res = urllib.request.urlopen(base + "/health", timeout=1)
+                    self.assertEqual(res.status, 200)
+                    self.assertEqual(res.read(), b"OK")
+                    break
+                except OSError:
+                    time.sleep(0.1)
+            else:
+                self.fail("test server did not start with CLI arguments")
+        finally:
+            server.terminate()
+            server.wait(timeout=5)
+
+
 if __name__ == "__main__":
     unittest.main()

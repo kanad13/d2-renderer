@@ -200,4 +200,4 @@ gcloud projects delete <PROJECT_ID>
 ## Navigation
 
 - [Documentation index](./README.md)
-- Previous: [Deploy runbook](./040-deploy-gcp.md)
+- Previous: [Cloud Run Setup](./setup/030-cloud-run.md)

@@ -12,6 +12,8 @@ How to verify `d2-renderer`: what each check proves, how to run it, and when it 
 | Every payload and diagram in the docs works.   | A copied example that fails costs a reader their trust.                     |
 | The image runs on both architectures.          | Apple Silicon is a main audience.                                           |
 | The published image pulls and passes tests.    | Downstream users and CI depend on valid registry artifacts.                 |
+| Host execution without D2 binary               | Rendering fails cleanly with actionable advice rather than unhandled crash. |
+| CLI argument overrides                         | `--port` and `--bind` allow flexible host execution.                        |
 | Rendered pictures look right.                  | A `200` status does not prove labels are readable.                          |
 
 ## Workflow map
@@ -38,7 +40,9 @@ How to verify `d2-renderer`: what each check proves, how to run it, and when it 
 | Import in a diagram                           | Run a stand-in `d2` that reports its flags and directory                               | `--bundle=false` present, working directory empty and not the server directory                                                         | Subprocess `cwd`               | `test_24_compile_runs_offline_in_an_empty_directory` (starts its own server) |
 | Reader copying a payload                      | Decode and render every payload in README.md, docs/, examples/                         | `200` with SVG each; the API reference payload decodes to `examples/hello.d2`                                                          | zlib, base64, D2               | `test_25`, `test_27`                                                         |
 | Reader viewing a diagram                      | Re-render every `.d2` under `docs/diagrams/` and `examples/`; compare embedded sources | Committed SVGs match fresh renders; embedded code matches its `.d2` file                                                               | D2 layout, fonts               | `test_28_committed_diagrams_are_current`                                     |
-| Published registry artifact                   | Pull `ghcr.io/<OWNER>/d2-renderer:latest`, boot container, run suite and probe         | `200` on all endpoints, all 28 tests pass, probe matches baseline                                                                      | Container registry, multi-arch | `scripts/test-published-image.sh`                                            |
+| Host without D2 binary                        | Post a diagram when `d2` is not in `$PATH`                                             | `500 Internal Server Error`, one-line status, plain-text body explaining `d2` was not found                                           | System PATH, subprocess        | `test_29_missing_d2_binary_returns_500` (starts its own server)              |
+| CLI argument overrides                        | Start server with `--port <PORT>` and `--bind 127.0.0.1`                               | `200` on custom port and bound address                                                                                                 | CLI parsing, socket binding    | `test_30_cli_arguments_override_port_and_host` (starts its own server)       |
+| Published registry artifact                   | Pull `ghcr.io/<OWNER>/d2-renderer:latest`, boot container, run suite and probe         | `200` on all endpoints, all 30 tests pass, probe matches baseline                                                                      | Container registry, multi-arch | `scripts/test-published-image.sh`                                            |
 
 ## Run the automated suite
 

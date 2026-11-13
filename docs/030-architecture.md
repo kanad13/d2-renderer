@@ -9,7 +9,7 @@ d2-renderer is one small container: an HTTP service that runs the `d2` compiler 
 | HTTP service      | Decodes the request, enforces limits, calls D2, caches results. Standard library only.         | [server.py](../server.py)             |
 | Container         | Python 3.12, a pinned D2 binary (v0.9.0) and fonts, built for `linux/amd64` and `linux/arm64`. | [Dockerfile](../Dockerfile)           |
 | CI/CD             | Test, publish a multi-architecture image to GitHub Container Registry, deploy to Cloud Run.    | [ci.yml](../.github/workflows/ci.yml) |
-| Cloud Run service | Runs the container in an EU region and scales to zero.                                         | [Deploy runbook](./040-deploy-gcp.md) |
+| Cloud Run service | Runs the container in an EU region and scales to zero.                                         | [Deploy runbook](./setup/030-cloud-run.md) |
 
 ## Request flow
 
@@ -164,4 +164,4 @@ Each picture is an SVG that this project's own container drew from the D2 source
 ## Navigation
 
 - [Documentation index](./README.md)
-- Previous: [API reference](./020-api-reference.md) · Next: [Deploy runbook](./040-deploy-gcp.md)
+- Previous: [API reference](./020-api-reference.md) · Next: [Operations](./050-operations.md)
