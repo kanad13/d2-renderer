@@ -21,6 +21,7 @@ Read in order; each is under a page.
 | [070-static-svg-diagrams-in-docs.md](./070-static-svg-diagrams-in-docs.md)               | Show documentation diagrams as committed SVG files with their D2 source beside them. |
 | [080-multi-architecture-image.md](./080-multi-architecture-image.md)                     | Publish `linux/amd64` and `linux/arm64` from one tag.                                |
 | [090-on-demand-cloud-run-deployment.md](./090-on-demand-cloud-run-deployment.md)         | On-demand Cloud Run deployment and 1-command IAM perimeter control.                  |
+| [100-local-daemon-management-script.md](./100-local-daemon-management-script.md)         | Dedicated lifecycle management script (`scripts/manage-daemon.sh`) for native host daemons. |
 
 ## Record format
 

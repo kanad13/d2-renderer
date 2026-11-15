@@ -78,7 +78,27 @@ PORT=9090 HOST=127.0.0.1 python3 server.py
 
 ## Running as a Background Daemon
 
-### macOS (`launchd`)
+### Lifecycle Management Script (`manage-daemon.sh`)
+
+For ad-hoc background execution, desktop hotkeys, or automations (Apple Shortcuts, Raycast, Alfred, VS Code tasks), use the lifecycle supervisor script:
+
+```bash
+./scripts/manage-daemon.sh up       # Start daemon in background (idempotent)
+./scripts/manage-daemon.sh status   # Check status, PID, and health URL
+./scripts/manage-daemon.sh toggle   # Start if stopped; stop if running
+./scripts/manage-daemon.sh down     # Gracefully stop the process
+./scripts/manage-daemon.sh restart  # Gracefully restart the service
+./scripts/manage-daemon.sh logs     # Tail recent server output
+```
+
+- **Desktop Automations & Shortcuts:** Non-interactive environments (such as Apple Shortcuts or cron) execute with a bare `$PATH` (`/usr/bin:/bin`). `manage-daemon.sh` dynamically locates Python 3 and the `d2` compiler across standard runtime paths (`$HOME/.local/bin`, Homebrew prefixes, `/usr/local/bin`).
+- **State Storage:** The process ID and server log are kept in `~/.d2-renderer/` (configurable via `D2_STATE_DIR`), keeping your repository checkout clean.
+- **Apple Shortcuts Action:** Configure a "Run Shell Script" action with shell `/bin/zsh` executing:
+  ```bash
+  <PATH_TO_REPO>/scripts/manage-daemon.sh toggle
+  ```
+
+### macOS Persistent Service (`launchd`)
 Create a plist file at `~/Library/LaunchAgents/com.user.d2-renderer.plist`:
 
 ```xml

@@ -42,6 +42,7 @@ How to verify `d2-renderer`: what each check proves, how to run it, and when it 
 | Reader viewing a diagram                      | Re-render every `.d2` under `docs/070-diagrams/` and `docs/090-examples/`; compare embedded sources | Committed SVGs match fresh renders; embedded code matches its `.d2` file                                                               | D2 layout, fonts               | `test_28_committed_diagrams_are_current`                                     |
 | Host without D2 binary                        | Post a diagram when `d2` is not in `$PATH`                                             | `500 Internal Server Error`, one-line status, plain-text body explaining `d2` was not found                                           | System PATH, subprocess        | `test_29_missing_d2_binary_returns_500` (starts its own server)              |
 | CLI argument overrides                        | Start server with `--port <PORT>` and `--bind 127.0.0.1`                               | `200` on custom port and bound address                                                                                                 | CLI parsing, socket binding    | `test_30_cli_arguments_override_port_and_host` (starts its own server)       |
+| Native host daemon lifecycle                  | Start, stop, toggle, idempotency, and status via `scripts/manage-daemon.sh`             | `200` on health probe, PID cleaned on down, standard exit codes (0 running, 1 stopped)                                                  | Subprocess, signals, filesystem| `TestManageDaemonScript` (`tests/test_manage_daemon.py`)                      |
 | Published registry artifact                   | Pull `ghcr.io/<OWNER>/d2-renderer:latest`, boot container, run suite and probe         | `200` on all endpoints, all 30 tests pass, probe matches baseline                                                                      | Container registry, multi-arch | `scripts/test-published-image.sh`                                            |
 
 ## Run the automated suite
@@ -57,7 +58,7 @@ docker rm -f d2-test
 
 - **`TEST_TARGET_URL`:** the server under test. Default `http://127.0.0.1:8088`.
 - **`TEST_STANDIN_HOST`:** the test machine as the server sees it. Default `host.docker.internal`. Set it when the server runs outside Docker Desktop.
-- **Without Docker:** install D2 (`brew install d2`), run `python3 server.py` in the background, then run the same test command.
+- **Without Docker:** install D2 (`brew install d2`), start the daemon with `./scripts/manage-daemon.sh up`, run the same test command, and stop with `./scripts/manage-daemon.sh down`.
 - **CI:** the `test` job in [ci.yml](./.github/workflows/ci.yml) runs this suite on every push and pull request. The `publish` job follows on `main`; `deploy` runs on manual dispatch (`workflow_dispatch`).
 
 ## Sabotage checks
