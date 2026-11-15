@@ -18,6 +18,7 @@ How to configure, deploy, operate, and extend `d2-renderer`, and why it is engin
 
 | Document | Summary |
 | :--- | :--- |
+| [000-plan.md](./000-plan.md) | Active milestone, acceptance check and next action. |
 | [010-setup/](./010-setup/README.md) | Guides for Docker, native Python, and Cloud Run deployments. |
 | [020-api-reference.md](./020-api-reference.md) | Endpoints, query parameters, encoding, error replies, and rendering rules. |
 | [030-architecture.md](./030-architecture.md) | Components, request flow, offline compile, deployment, and limits, with diagrams. |
@@ -39,4 +40,4 @@ Draw `d2` fences in VS Code with [Lightweight Markdown Preview](https://marketpl
 ## Navigation
 
 - [Project README](../README.md)
-- [Testing guide](../TESTING.md)
+- [Testing guide](../tests/README.md)

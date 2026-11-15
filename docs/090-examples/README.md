@@ -506,4 +506,4 @@ In VS Code, paste a `.d2` file into a `d2` fence and [Lightweight Markdown Previ
 
 - [Project README](../../README.md)
 - [Documentation index](../README.md)
-- [Testing guide](../../TESTING.md)
+- [Testing guide](../../tests/README.md)

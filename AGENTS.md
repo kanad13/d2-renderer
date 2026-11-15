@@ -31,6 +31,24 @@ If a change breaks rendering, fix it before ending the session.
 | Test published image | `./scripts/test-published-image.sh`                                                                       |
 | Stop local           | `docker rm -f d2-test`                                                                                    |
 
+## Where things live
+
+| Path                                              | Role                                                  |
+| :------------------------------------------------ | :---------------------------------------------------- |
+| [README.md](./README.md)                          | Overview, setup and run instructions.                 |
+| [docs/000-plan.md](./docs/000-plan.md)            | Active milestone, progress and next action.           |
+| [docs/060-decisions.md](./docs/060-decisions.md)  | Decisions in force, rejected options, revisit triggers. |
+| [tests/README.md](./tests/README.md)              | What each check proves and how to run it.             |
+| [.env.example](./.env.example)                    | Every environment variable the code and scripts read. |
+
+## Working agreements
+
+- **Start of turn:** read the plan, the decisions that touch your change and recent `git log`. Correct stale state before editing.
+- **Before an increment:** record the goal, acceptance check and next action in the plan.
+- **After an increment:** prune completed items older than the preceding step, update blockers, run verification.
+- **Behavior or tooling change:** update `tests/README.md`, `README.md` and `.env.example` in the same change.
+- **End of turn:** make `Next action` in the plan runnable by a reader with no prior context.
+
 ## Rules
 
 - **Commits:** small, at natural checkpoints, using the `commit-scribe` skill. Do not add `Co-Authored-By` or any other agent attribution trailer.
@@ -52,6 +70,6 @@ If a change breaks rendering, fix it before ending the session.
 | Path        | Purpose                                                       |
 | :---------- | :------------------------------------------------------------ |
 | `server.py` | The HTTP service. Limits are env-configurable.                |
-| `tests/`    | Integration tests against a running server.                   |
+| `tests/`    | Integration tests (`test_server.py` needs a running server) and the testing guide. |
 | `scripts/`  | Render check, behavior probe, doc-diagram builder, GCP setup. |
-| `docs/`     | Numbered guides (010-060), diagrams (070), images (080), and examples (090). |
+| `docs/`     | Plan (000), numbered guides (010-060), diagrams (070), images (080), and examples (090). |

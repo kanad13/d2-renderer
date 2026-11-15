@@ -59,7 +59,7 @@ docker rm -f d2-test
 - **`TEST_TARGET_URL`:** the server under test. Default `http://127.0.0.1:8088`.
 - **`TEST_STANDIN_HOST`:** the test machine as the server sees it. Default `host.docker.internal`. Set it when the server runs outside Docker Desktop.
 - **Without Docker:** install D2 (`brew install d2`), start the daemon with `./scripts/manage-daemon.sh up`, run the same test command, and stop with `./scripts/manage-daemon.sh down`. The tests in `test_manage_daemon.py` start their own servers on free ports and run in either setup.
-- **CI:** the `test` job in [ci.yml](./.github/workflows/ci.yml) runs this suite on every push and pull request. The `publish` job follows on `main`; `deploy` runs on manual dispatch (`workflow_dispatch`).
+- **CI:** the `test` job in [ci.yml](../.github/workflows/ci.yml) runs this suite on every push and pull request. The `publish` job follows on `main`; `deploy` runs on manual dispatch (`workflow_dispatch`).
 
 ## Sabotage checks
 
@@ -150,6 +150,6 @@ CI executes this same verification in the `publish` job immediately after pushin
 
 ## Navigation
 
-- [Back to Project README](./README.md)
-- [Examples](./docs/090-examples/README.md)
-- [Documentation index](./docs/README.md)
+- [Back to Project README](../README.md)
+- [Examples](../docs/090-examples/README.md)
+- [Documentation index](../docs/README.md)

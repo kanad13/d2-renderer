@@ -175,7 +175,7 @@ Review the [Security Policy](./SECURITY.md) for vulnerability reporting procedur
 | [**Operations**](./docs/050-operations.md) | Cost controls, rollback procedures, logging, and public access IAM toggles. |
 | [**Decision Records**](./docs/060-decisions.md) | Architectural Decision Records (ADRs) explaining technical trade-offs. |
 | [**Examples**](./docs/090-examples/README.md) | Sample `.d2` files with rendered SVGs and curl commands. |
-| [**Testing Guide**](./TESTING.md) | Integration test map, sabotage checks, and verification procedures. |
+| [**Testing Guide**](./tests/README.md) | Integration test map, sabotage checks, and verification procedures. |
 | [**AGENTS.md**](./AGENTS.md) | Repository instructions for coding agents. |
 
 ---
