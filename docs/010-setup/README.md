@@ -15,7 +15,7 @@ Choose and configure the operational footprint for `d2-renderer`. The service ex
 ## Contents
 
 - [**010-docker.md**](./010-docker.md): Pulling from GHCR, port mapping, loopback binding, updating, and container troubleshooting.
-- [**020-local-python.md**](./020-local-python.md): Host setup, installing D2, CLI flags (`--port`, `--bind`), and background daemon options.
+- [**020-local-python.md**](./020-local-python.md): Host setup, installing D2, CLI flags (`--port`, `--bind`), the `manage-daemon.sh` lifecycle script, and `launchd` or `systemd` services.
 - [**030-cloud-run.md**](./030-cloud-run.md): One-time GCP provisioning, keyless GitHub Actions OIDC deploy, and public access IAM toggles.
 
 ## Next Steps

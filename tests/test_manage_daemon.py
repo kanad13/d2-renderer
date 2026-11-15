@@ -71,7 +71,16 @@ class TestManageDaemonScript(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def run_cmd(self, cmd: str, env=None) -> subprocess.CompletedProcess:
-        """Helper to invoke manage-daemon.sh with the test environment."""
+        """Runs one manage-daemon.sh subcommand and captures its output.
+
+        Args:
+            cmd: Subcommand name, for example 'up' or 'status'.
+            env: Environment to use instead of the test sandbox. Pass a copy with a
+                different PORT to control a second daemon in the same state directory.
+
+        Returns:
+            The completed process with text stdout and stderr.
+        """
         return subprocess.run(
             [SCRIPT_PATH, cmd],
             env=env or self.env,
@@ -203,6 +212,8 @@ class TestManageDaemonScript(unittest.TestCase):
         """Verifies 'down' and 'up' refuse to touch a server the script did not start."""
 
         class Health(BaseHTTPRequestHandler):
+            """Stands in for a foreign service that answers /health but has no PID file."""
+
             def do_GET(self):
                 self.send_response(200)
                 self.end_headers()

@@ -356,6 +356,8 @@ class RecordingServer:
         hits = self.hits = []
 
         class Handler(http.server.BaseHTTPRequestHandler):
+            """Answers every GET with a tiny SVG and records the path for later assertions."""
+
             def do_GET(self):
                 hits.append(self.path)
                 self.send_response(200)

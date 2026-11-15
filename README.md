@@ -91,7 +91,7 @@ Choose the deployment model that matches your infrastructure and security polici
 | Footprint | When to Choose | Key Characteristics | Setup Guide |
 | :--- | :--- | :--- | :--- |
 | **Docker Container** | You have Docker or Podman installed. | Zero local toolchain install; bundles D2 compiler, layout engines, and fonts; multi-arch (`amd64`/`arm64`). | [Docker Runbook](./docs/010-setup/010-docker.md) |
-| **Native Python** | You want zero container overhead or Docker is restricted. | Python standard library only; zero `pip` packages; instant startup; executes local `d2` binary safely. | [Native Python Runbook](./docs/010-setup/020-local-python.md) |
+| **Native Python** | You want zero container overhead or Docker is restricted. | Python standard library only; zero `pip` packages; instant startup; executes local `d2` binary safely; `scripts/manage-daemon.sh` starts, stops and toggles it in the background. | [Native Python Runbook](./docs/010-setup/020-local-python.md) |
 | **Google Cloud Run** | You want a shared team service or public `<img>` URLs. | Serverless scale-to-zero; free-tier friendly; keyless OIDC GitHub deployment; 1-command public IAM toggle. | [Cloud Run Runbook](./docs/010-setup/030-cloud-run.md) |
 
 - **Contract Consistency:**
