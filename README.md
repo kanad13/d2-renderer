@@ -137,7 +137,7 @@ Consult the [API Reference](./docs/020-api-reference.md) for query parameters in
 | Feature | Mechanism | Benefit |
 | :--- | :--- | :--- |
 | **Private Rendering** | Compiles locally inside your container or host process | Architecture designs never leave your control. |
-| **Offline Compiles** | Runs `d2 --bundle=false` in an empty temporary directory | Diagrams cannot fetch external icon URLs or import server files. See [decision 060](./docs/060-decisions/060-offline-compile-in-empty-directory.md). |
+| **Offline Compiles** | Runs `d2 --bundle=false` in an empty temporary directory | Diagrams cannot fetch external icon URLs or import server files. See [Decision 006](./docs/060-decisions.md#decision-006---offline-compile-in-an-empty-directory). |
 | **Zero Dependencies** | Server uses only Python standard library | Single clean file; zero pip vulnerability management. |
 | **Multi-Architecture** | Multi-arch image manifests (`linux/amd64`, `linux/arm64`) | Runs natively on Intel/AMD and Apple Silicon without emulation. |
 | **In-Memory Cache** | Least-recently-used (LRU) memory cache (256 entries) | Repeated requests resolve in ~1.2 ms without spawning processes. |
@@ -173,7 +173,7 @@ Review the [Security Policy](./SECURITY.md) for vulnerability reporting procedur
 | [**API Reference**](./docs/020-api-reference.md) | Endpoints, query parameters, encoding formats, and status codes. |
 | [**Architecture**](./docs/030-architecture.md) | System components, request flow diagrams, caching, and resource limits. |
 | [**Operations**](./docs/050-operations.md) | Cost controls, rollback procedures, logging, and public access IAM toggles. |
-| [**Decision Records**](./docs/060-decisions/README.md) | Architectural Decision Records (ADRs) explaining technical trade-offs. |
+| [**Decision Records**](./docs/060-decisions.md) | Architectural Decision Records (ADRs) explaining technical trade-offs. |
 | [**Examples**](./docs/090-examples/README.md) | Sample `.d2` files with rendered SVGs and curl commands. |
 | [**Testing Guide**](./TESTING.md) | Integration test map, sabotage checks, and verification procedures. |
 | [**AGENTS.md**](./AGENTS.md) | Repository instructions for coding agents. |

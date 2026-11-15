@@ -14,18 +14,18 @@ d2-renderer compiles diagram text that anyone can send, so it treats every diagr
 
 | Risk                                      | Protection                                                                                                  | Evidence                                                                                   |
 | :---------------------------------------- | :---------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------- |
-| A diagram that names icon URLs or imports | Each compile runs `d2 --bundle=false` in a fresh empty directory, so it makes no request and finds no files | [Decision 060](./docs/060-decisions/060-offline-compile-in-empty-directory.md), tests 22 to 24 |
+| A diagram that names icon URLs or imports | Each compile runs `d2 --bundle=false` in a fresh empty directory, so it makes no request and finds no files | [Decision 006](./docs/060-decisions.md#decision-006---offline-compile-in-an-empty-directory), tests 22 to 24 |
 | Huge or highly compressed input           | Input over `MAX_SOURCE_BYTES` (256 KiB) gets `413`, checked as sent and while inflating                     | Tests 12 and 13                                                                            |
 | A compile that never ends                 | The compile stops after `RENDER_TIMEOUT_SECONDS` (20) and the reply is `504`                                | Test 14                                                                                    |
-| A traffic flood on Cloud Run              | One instance at most, concurrency 8, a cache of 256 entries, and a Tier 1 EU region                         | [Decision 050](./docs/060-decisions/050-traffic-limits-and-cost-guardrails.md)             |
+| A traffic flood on Cloud Run              | One instance at most, concurrency 8, a cache of 256 entries, and a Tier 1 EU region                         | [Decision 005](./docs/060-decisions.md#decision-005---traffic-limits-and-a-budget-alert-not-a-hard-cap)             |
 | Container privileges                      | The image runs as a non-root user                                                                           | [Dockerfile](./Dockerfile)                                                                 |
-| Credentials                               | The service uses no secrets, and deploys use keyless GitHub-to-Google federation                            | [Decision 030](./docs/060-decisions/030-keyless-github-deploy.md)                          |
+| Credentials                               | The service uses no secrets, and deploys use keyless GitHub-to-Google federation                            | [Decision 003](./docs/060-decisions.md#decision-003---keyless-workload-identity-federation-for-deploys)                          |
 | Telemetry                                 | None. The server imports only the Python standard library and makes no outbound requests                    | [server.py](./server.py)                                                                   |
 
 ## Known limits
 
 - **The service has no authentication.**
-  - Anyone who can reach a running instance can render diagrams, up to the limits above. [Decision 020](./docs/060-decisions/020-no-token-auth.md) records why. The Cloud Run service stays private by default, and [operations](./docs/050-operations.md#control-public-access-up-and-down) says how to open and close it.
+  - Anyone who can reach a running instance can render diagrams, up to the limits above. [Decision 002](./docs/060-decisions.md#decision-002---open-service-with-no-shared-secret) records why. The Cloud Run service stays private by default, and [operations](./docs/050-operations.md#control-public-access-up-and-down) says how to open and close it.
 - **Replies allow any origin (`Access-Control-Allow-Origin: *`).**
   - A web page you visit can ask a container on your machine to render a diagram. The service stores nothing and holds no secrets, so a page can use its compute and nothing else. Stop the container when you do not use it.
 - **Docker publishes the port on every network interface by default.**

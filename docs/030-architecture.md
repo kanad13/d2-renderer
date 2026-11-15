@@ -1,6 +1,6 @@
 # Architecture
 
-`d2-renderer` is an open-source HTTP service that compiles D2 diagram specifications into SVG images. The container runs on local developer machines, within self-hosted Docker environments, or as a serverless instance on Google Cloud Run. Because public pages embed diagram URLs directly, public instances operate without token authentication ([decision 020](./060-decisions/020-no-token-auth.md)) and enforce strict resource limits instead.
+`d2-renderer` is an open-source HTTP service that compiles D2 diagram specifications into SVG images. The container runs on local developer machines, within self-hosted Docker environments, or as a serverless instance on Google Cloud Run. Because public pages embed diagram URLs directly, public instances operate without token authentication ([Decision 002](./060-decisions.md#decision-002---open-service-with-no-shared-secret)) and enforce strict resource limits instead.
 
 ## Components
 
@@ -133,11 +133,11 @@ compile_sandbox -> external_network: blocked (zero outbound calls) {
 - **Flag:** `d2 --bundle=false` makes the compiler offline. Icon URLs stay in the SVG as `<image href>` references.
 - **Directory:** each compile runs in a fresh empty temporary directory, so imports find nothing.
 - **Result:** a diagram cannot trigger an outbound request, on any host that runs the image.
-- **Record:** [decision 060](./060-decisions/060-offline-compile-in-empty-directory.md).
+- **Record:** [Decision 006](./060-decisions.md#decision-006---offline-compile-in-an-empty-directory).
 
 ## Build and deployment
 
-Pushing to `main` tests the build and publishes both architectures to GHCR. Cloud Run deployment runs on manual dispatch ([decision 090](./060-decisions/090-on-demand-cloud-run-deployment.md)), selecting the `linux/amd64` entry of the image.
+Pushing to `main` tests the build and publishes both architectures to GHCR. Cloud Run deployment runs on manual dispatch ([Decision 009](./060-decisions.md#decision-009---on-demand-cloud-run-deployment-with-iam-perimeter-control)), selecting the `linux/amd64` entry of the image.
 
 <img src="080-img/deployment.svg" alt="A push to main flows through GitHub Actions to the GHCR image and a Cloud Run service that public pages call" width="420">
 
@@ -200,11 +200,11 @@ public_clients -> cloud_run.service: "GET /d2/svg/<payload>"
 | Cloud Run concurrency    | 8           | Many parallel D2 processes on one CPU.                |
 | Cloud Run max instances  | 1           | Cost growth under a traffic flood.                    |
 
-Cloud Run settings come from the deploy job in [ci.yml](../.github/workflows/ci.yml). The reasoning is in [decision 050](./060-decisions/050-traffic-limits-and-cost-guardrails.md).
+Cloud Run settings come from the deploy job in [ci.yml](../.github/workflows/ci.yml). The reasoning is in [Decision 005](./060-decisions.md#decision-005---traffic-limits-and-a-budget-alert-not-a-hard-cap).
 
 ## Where the diagrams in these docs come from
 
-Each picture is an SVG that this project's own container drew from the D2 source shown beside it. `scripts/build-doc-diagrams.py` rebuilds them, and its `--check` mode runs in CI. See [decision 070](./060-decisions/070-static-svg-diagrams-in-docs.md).
+Each picture is an SVG that this project's own container drew from the D2 source shown beside it. `scripts/build-doc-diagrams.py` rebuilds them, and its `--check` mode runs in CI. See [Decision 007](./060-decisions.md#decision-007---committed-svg-files-for-documentation-diagrams).
 
 ## Navigation
 

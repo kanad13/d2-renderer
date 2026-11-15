@@ -140,7 +140,7 @@ err: -:1:11: maps must be terminated with }
 - **Offline compile:**
   - D2 runs with `--bundle=false` in an empty directory, so a diagram cannot trigger a download or read a server file.
   - `icon:` and image URLs stay in the SVG as `<image href>` references.
-  - Rationale: [decision 060](./060-decisions/060-offline-compile-in-empty-directory.md).
+  - Rationale: [Decision 006](./060-decisions.md#decision-006---offline-compile-in-an-empty-directory).
 - **Caching:**
   - The service keeps the 256 most recently used renders in memory.
   - The one-year `Cache-Control` header lets browsers keep a diagram without asking again.

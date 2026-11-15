@@ -26,7 +26,7 @@ Runbook for setting up and deploying an on-demand, serverless instance of `d2-re
 - A Google Cloud account with project creation permissions.
 - The [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) authenticated locally.
 - The [`gh` CLI](https://cli.github.com) authenticated with admin rights to `<GITHUB_REPO>`.
-- A public GitHub Container Registry package so Cloud Run can pull images without credentials ([decision 040](../060-decisions/040-public-image-pulled-directly.md)).
+- A public GitHub Container Registry package so Cloud Run can pull images without credentials ([Decision 004](../060-decisions.md#decision-004---cloud-run-pulls-the-public-ghcr-image-directly)).
 
 ## 1. Sign in
 
@@ -63,7 +63,7 @@ gh variable set GCP_RUNTIME_SERVICE_ACCOUNT -R <GITHUB_REPO> -b "<value printed 
 
 ## 4. Trigger Deployment
 
-Trigger the GitHub Actions deploy job explicitly ([decision 090](../060-decisions/090-on-demand-cloud-run-deployment.md)):
+Trigger the GitHub Actions deploy job explicitly ([Decision 009](../060-decisions.md#decision-009---on-demand-cloud-run-deployment-with-iam-perimeter-control)):
 
 ```bash
 gh workflow run ci.yml -R <GITHUB_REPO>

@@ -40,7 +40,7 @@ Follow these direct steps whenever you need to run or test the service.
 
 ## Control public access (UP and DOWN)
 
-Cloud Run scales to zero instances when idle. Controlling whether the public internet can wake the container is handled directly through its IAM invoker policy ([decision 090](./060-decisions/090-on-demand-cloud-run-deployment.md)).
+Cloud Run scales to zero instances when idle. Controlling whether the public internet can wake the container is handled directly through its IAM invoker policy ([Decision 009](./060-decisions.md#decision-009---on-demand-cloud-run-deployment-with-iam-perimeter-control)).
 
 - **Bring it online (allow public requests):**
   - Grants `allUsers` the invoker role, allowing incoming HTTP requests to wake the container on demand.
@@ -121,9 +121,9 @@ Cloud Run bills only while an instance processes requests (rounded up to 100 ms)
 - **Free Allowance by Region:**
   - Request-based billing includes monthly Tier 1 allowances: 180,000 vCPU-seconds, 360,000 GiB-seconds, and 2 million requests.
   - Tier 1 EU regions include Belgium (`europe-west1`), Netherlands, Finland, Madrid, Milan, and Paris.
-  - Deployments must stay in a Tier 1 region ([decision 010](./060-decisions/010-eu-region-belgium.md)).
+  - Deployments must stay in a Tier 1 region ([Decision 001](./060-decisions.md#decision-001---belgium-europe-west1-as-the-cloud-run-region)).
 - **Instance Limit:**
-  - Cloud Run enforces `max-instances=1` ([decision 050](./060-decisions/050-traffic-limits-and-cost-guardrails.md)).
+  - Cloud Run enforces `max-instances=1` ([Decision 005](./060-decisions.md#decision-005---traffic-limits-and-a-budget-alert-not-a-hard-cap)).
   - Caps concurrent spending rate while allowing requests to queue.
 - **Budget Alert:**
   - Triggers email notifications when projected monthly spend crosses the threshold.

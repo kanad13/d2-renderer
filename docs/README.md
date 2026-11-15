@@ -11,7 +11,7 @@ How to configure, deploy, operate, and extend `d2-renderer`, and why it is engin
 - **Understanding safety and limits:** Inspect [Architecture](./030-architecture.md).
 - **Exploring D2 capabilities & visual testing:** Browse the [Visualization Gallery](./040-visualizations/README.md) or open the unrendered [Test Document](./040-visualizations/010-test-preview.md).
 - **Operating a cloud instance:** Follow the [Operations Guide](./050-operations.md).
-- **Reviewing design choices:** Inspect [Decision Records](./060-decisions/README.md).
+- **Reviewing design choices:** Inspect [Decision Records](./060-decisions.md).
 - **Exploring diagram examples:** Browse [Examples](./090-examples/README.md).
 
 ## Contents
@@ -23,7 +23,7 @@ How to configure, deploy, operate, and extend `d2-renderer`, and why it is engin
 | [030-architecture.md](./030-architecture.md) | Components, request flow, offline compile, deployment, and limits, with diagrams. |
 | [040-visualizations/](./040-visualizations/README.md) | Showcase of D2 architectures, schemas, sequences, and an unrendered test document. |
 | [050-operations.md](./050-operations.md) | Health checks, cost, tags, rollback, logs, tuning, and teardown. |
-| [060-decisions/](./060-decisions/README.md) | Decision records: what was chosen, what was rejected, and why. |
+| [060-decisions.md](./060-decisions.md) | Decision records: what was chosen, what was rejected, and why. |
 | [070-diagrams/](./070-diagrams/README.md) | Canonical D2 sources for the architecture diagrams in these docs. |
 | [080-img/](./080-img/) | Committed static SVG images rendered from `070-diagrams/`. |
 | [090-examples/](./090-examples/README.md) | Eight ready-made D2 diagrams with rendered SVGs and curl commands. |

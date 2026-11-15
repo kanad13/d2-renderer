@@ -4,7 +4,7 @@ Instructions for coding agents working in this repository. Humans: start at [REA
 
 ## What this is
 
-A Python 3.12 standard-library HTTP service that turns D2 diagram text into SVG by calling the `d2` CLI. It ships as a multi-architecture Docker image (`ghcr.io/kanad13/d2-renderer`, `linux/amd64` and `linux/arm64`). People run it locally for the VS Code extension, and it runs on Google Cloud Run in an EU region. Diagram URLs are embedded in public pages, so the public service is deliberately open (no token). See [docs/060-decisions/](./docs/060-decisions/README.md) for why.
+A Python 3.12 standard-library HTTP service that turns D2 diagram text into SVG by calling the `d2` CLI. It ships as a multi-architecture Docker image (`ghcr.io/kanad13/d2-renderer`, `linux/amd64` and `linux/arm64`). People run it locally for the VS Code extension, and it runs on Google Cloud Run in an EU region. Diagram URLs are embedded in public pages, so the public service is deliberately open (no token). See [docs/060-decisions/](./docs/060-decisions.md) for why.
 
 ## Goal of every coding session
 
@@ -35,14 +35,14 @@ If a change breaks rendering, fix it before ending the session.
 
 - **Commits:** small, at natural checkpoints, using the `commit-scribe` skill. Do not add `Co-Authored-By` or any other agent attribution trailer.
 - **Docs use placeholders.** Never paste this maintainer's real project IDs, emails, billing accounts or URLs into docs or scripts. Use `<PLACEHOLDER>` names, and have scripts read values from arguments or environment variables.
-- **Diagrams in docs are committed SVGs.** Edit the `.d2` source in `docs/070-diagrams/` or `docs/090-examples/`, run `scripts/build-doc-diagrams.py`, and commit the `.d2`, the SVG and any embedded source together. Embed a diagram with `scripts/build-doc-diagrams.py --embed`. `test_28` fails when they drift. See [decision 070](./docs/060-decisions/070-static-svg-diagrams-in-docs.md).
-- **Record decisions.** A new choice with trade-offs gets a file in `docs/060-decisions/`. Do not edit an accepted decision; add a new one that supersedes it.
+- **Diagrams in docs are committed SVGs.** Edit the `.d2` source in `docs/070-diagrams/` or `docs/090-examples/`, run `scripts/build-doc-diagrams.py`, and commit the `.d2`, the SVG and any embedded source together. Embed a diagram with `scripts/build-doc-diagrams.py --embed`. `test_28` fails when they drift. See [Decision 007](./docs/060-decisions.md#decision-007---committed-svg-files-for-documentation-diagrams).
+- **Record decisions.** Add a record to [docs/060-decisions.md](./docs/060-decisions.md) before implementing a choice with trade-offs. Records state the rule in force: edit one in place when it changes, and mark it `Superseded by Decision XXX` when a requirement replaces it. Each record lists rejected approaches and a "Revisit decision when" condition.
 - **One fact, one place.** Link to the canonical doc instead of copying commands.
 - **Dependencies:** the server has none beyond the standard library. Do not add any without an ADR.
-- **Offline compile:** keep `--bundle=false` and the empty working directory ([decision 060](./docs/060-decisions/060-offline-compile-in-empty-directory.md)).
+- **Offline compile:** keep `--bundle=false` and the empty working directory ([Decision 006](./docs/060-decisions.md#decision-006---offline-compile-in-an-empty-directory)).
 - **Error replies:** go through `_send_error_text` so the status line stays one line.
 - **Cost safety:** the Cloud Run service must keep `max-instances` at 1 and stay in a Tier 1 EU region. Never create always-on instances.
-- **Cloud Run deploys:** Cloud Run deployment runs only on manual dispatch (`workflow_dispatch`), so everyday pushes to `main` test and publish images without modifying live Cloud Run state. Toggle public access on GCP directly with `add-iam-policy-binding` and `remove-iam-policy-binding` ([decision 090](./docs/060-decisions/090-on-demand-cloud-run-deployment.md), [operations](./docs/050-operations.md#control-public-access-up-and-down)).
+- **Cloud Run deploys:** Cloud Run deployment runs only on manual dispatch (`workflow_dispatch`), so everyday pushes to `main` test and publish images without modifying live Cloud Run state. Toggle public access on GCP directly with `add-iam-policy-binding` and `remove-iam-policy-binding` ([Decision 009](./docs/060-decisions.md#decision-009---on-demand-cloud-run-deployment-with-iam-perimeter-control), [operations](./docs/050-operations.md#control-public-access-up-and-down)).
 - **Secrets:** none are used. Do not add credentials to the repo; deployment uses keyless GitHub-to-Google federation.
 - **Docs hygiene:** after doc changes, run the `markdown-audit` checks (numbering, README per folder, working relative links).
 - **Docs voice:** state what the service does, in the present tense. Keep factual limits as plain statements of fact.

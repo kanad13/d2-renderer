@@ -21,7 +21,7 @@ Start the container, then run the build script from the repository root:
 python3 scripts/build-doc-diagrams.py
 ```
 
-`--check` reports stale images or embedded sources and runs in CI. Rationale: [decision 070](../060-decisions/070-static-svg-diagrams-in-docs.md).
+`--check` reports stale images or embedded sources and runs in CI. Rationale: [Decision 007](../060-decisions.md#decision-007---committed-svg-files-for-documentation-diagrams).
 
 ## Navigation
 
