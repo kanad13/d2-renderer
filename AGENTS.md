@@ -24,7 +24,7 @@ If a change breaks rendering, fix it before ending the session.
 | Build image          | `docker build -t d2-renderer:test .`                                                                      |
 | Run locally          | `docker run -d --name d2-test -p 8088:8088 --add-host=host.docker.internal:host-gateway d2-renderer:test` |
 | Run native daemon    | `./scripts/manage-daemon.sh up` (or `toggle` / `down`)                                                    |
-| Run tests            | `python3 -m unittest discover -s tests -v` (needs a running server)                                       |
+| Run tests            | `python3 -m unittest discover -s tests -v` (`test_server.py` needs a running server)                                       |
 | Render check         | `python3 scripts/build-render-check.py`                                                                   |
 | Rebuild doc diagrams | `python3 scripts/build-doc-diagrams.py` (needs a running server)                                          |
 | Compare two targets  | `python3 scripts/probe-behavior.py <BASE_URL>`                                                            |

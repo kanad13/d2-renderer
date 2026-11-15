@@ -80,20 +80,34 @@ PORT=9090 HOST=127.0.0.1 python3 server.py
 
 ### Lifecycle Management Script (`manage-daemon.sh`)
 
-For ad-hoc background execution, desktop hotkeys, or automations (Apple Shortcuts, Raycast, Alfred, VS Code tasks), use the lifecycle supervisor script:
+Use the script for ad-hoc background runs and for launchers that cannot hold a terminal: Apple Shortcuts, Raycast, Alfred, cron, and VS Code tasks.
 
 ```bash
-./scripts/manage-daemon.sh up       # Start daemon in background (idempotent)
-./scripts/manage-daemon.sh status   # Check status, PID, and health URL
+./scripts/manage-daemon.sh up       # Start in the background (no-op if already running)
+./scripts/manage-daemon.sh status   # Print state, PID and URL; exit 0 if running, 1 if stopped
 ./scripts/manage-daemon.sh toggle   # Start if stopped; stop if running
-./scripts/manage-daemon.sh down     # Gracefully stop the process
-./scripts/manage-daemon.sh restart  # Gracefully restart the service
-./scripts/manage-daemon.sh logs     # Tail recent server output
+./scripts/manage-daemon.sh down     # Stop the server (SIGTERM, then SIGKILL after 3 seconds)
+./scripts/manage-daemon.sh restart  # down, then up
+./scripts/manage-daemon.sh logs     # Print the last 50 log lines
 ```
 
-- **Desktop Automations & Shortcuts:** Non-interactive environments (such as Apple Shortcuts or cron) execute with a bare `$PATH` (`/usr/bin:/bin`). `manage-daemon.sh` dynamically locates Python 3 and the `d2` compiler across standard runtime paths (`$HOME/.local/bin`, Homebrew prefixes, `/usr/local/bin`).
-- **State Storage:** The process ID and server log are kept in `~/.d2-renderer/` (configurable via `D2_STATE_DIR`), keeping your repository checkout clean.
-- **Apple Shortcuts Action:** Configure a "Run Shell Script" action with shell `/bin/zsh` executing:
+- **Settings:**
+  - `PORT` (default `8088`) and `HOST` (default `127.0.0.1`) select the listen address.
+  - `D2_STATE_DIR` (default `~/.d2-renderer/`) holds `d2-renderer-<PORT>.pid` and `d2-renderer-<PORT>.log`.
+  - `LOG_LINES` (default `50`) sets how many lines `logs` prints.
+- **Requirements:**
+  - The script needs Python 3.12 or newer and `curl`.
+  - If `d2` is missing, the script warns and `/health` still works, but rendering returns `500`.
+- **Bare `PATH`:**
+  - Cron and Apple Shortcuts run with `PATH=/usr/bin:/bin`.
+  - The script prepends `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin` and the Linuxbrew bin directory, so it finds Python and `d2` there.
+- **Ownership:**
+  - The PID file proves that the script started a server.
+  - If another process already answers on the port, `up` and `down` report an error and leave it running.
+  - `status` reports it as unmanaged.
+  - Each port has its own PID and log file, so several daemons can share one state directory.
+- **Log growth:** The log file is append-only and never rotates. Delete it when it grows too large.
+- **Apple Shortcuts:** Add a "Run Shell Script" action with shell `/bin/zsh` and the command:
   ```bash
   <PATH_TO_REPO>/scripts/manage-daemon.sh toggle
   ```
